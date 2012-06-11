@@ -19,11 +19,23 @@ void main(void) {
 	pcb_t *starter; //first process (test phase 2)
 
 	//0 populating new areas CP0, reading from file const.h where they are defined
-	state_t * newArea_int;
-	//kernel mode on, e memoria virtuale spenta
+	//interrupt
+	state_t * newArea_int = (state_t *)INT_NEWAREA;
 	newArea_int -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
 	newArea_int -> reg_sp = RAMTOP;
 	newArea_int -> pc_epc = newArea_int->reg_t9 (memaddr)intHandler; //TODO
+
+	//system call
+	state_t * newArea_sys = (state_t *)SYSBK_NEWAREA;
+	newArea_sys -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
+	newArea_sys -> reg_sp = RAMTOP;
+	newArea_sys -> pc_epc = newArea_int->reg_t9 (memaddr)sysHandler; //TODO
+
+	//trap
+	state_t * newArea_trap = (state_t *)PGMTRAP_NEWAREA;
+	newArea_trap -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
+	newArea_trap -> reg_sp = RAMTOP;
+	newArea_trap -> pc_epc = newArea_int->reg_t9 (memaddr)sysTrap; //TODO
 
 
 	//per gli altri processori devo creare una matrice del tipo
@@ -39,12 +51,13 @@ void main(void) {
 	//nei file di inclusione non le ho viste.
 
 
-	//declaration of the ready queue (an element of type list_head)
-	struct list_head ready_h;
-	INIT_LIST_HEAD(&ready_h);
 	//1 inizializing semaphore and process lists
 	initPcbs();
 	initASL();
+	//declaration of the ready queue (an element of type list_head)
+	struct list_head ready_h;
+	INIT_LIST_HEAD(&ready_h);
+
 
 
 
@@ -76,15 +89,15 @@ void main(void) {
 
 
 
-	//2 inizializing first process descriptor
+	//2 inizializing first process descriptor, the test process
 	starter = allocPcb();
-	starter ->p_s.status = (starter->p_s.status) | STATUS_IEc | STATUS_KUc | STATUS_VMc;
+	starter ->p_s.status = (starter->p_s.status) | STATUS_IEc | STATUS_KUc | (~STATUS_VMc);
 	//dal file const.h leggiamo che questi tre valori significano
-	//bit spenti
+	//interrupt abilitati
 	//kernel mode on
-	//memoria virtuale spenta
+	//memoria virtuale accesa, quindi devo negarla
 	starter->p_s.reg_sp = RAMTOP - FRAMESIZE;
-	starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr)test();
+	starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr)test;
 
 	//3 insert first process into ready queue
 	insertProcQ(&ready_h, starter);
