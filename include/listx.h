@@ -3,7 +3,6 @@ CPLv2 */
 #ifndef _LISTX_H
 #define _LISTX_H
 
-#define NULL 0
 typedef unsigned int    size_tt;
 
 #define container_of(ptr, type, member) ({			\

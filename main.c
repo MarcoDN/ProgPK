@@ -5,31 +5,42 @@
  *      Author: kira
  */
 
-#include "/home/kira/University/Fase_1/include/asl.e"
-#include "/home/kira/University/Fase_1/include/pcb.e"
-#include "/home/kira/University/Fase_1/include/base.h"
-#include "/home/kira/University/Fase_1/include/const.h"
-#include "/home/kira/University/Fase_1/include/libumps.h"
-#include "/home/kira/University/Fase_1/include/const11.h"
-#include "/home/kira/University/Fase_1/include/types11.h"
-#include "/home/kira/University/Fase_1/include/uMPStypes.h"
+/* E' sufficiente il nome del file da includere. Il path completo è specificato nel makefile. */
+
+#include "asl.e"
+#include "pcb.e"
+
+#include "libumps.h"
+#include "types11.h"
+
+#include "scheduler.h"
+#include "traps.h"
+#include "syscalls.h"
+#include "interrupts.h"
+
+#include "util.h"
+
+/* Address of register containing the number of CPUs. */
+#define NCPUs 0x10000500
+
+/* Numbers of CPUs the system will be using. */
+int NUM_CPU = 4;
 
 void wait() {
 	while(1) ;
 }
 
+int main() {
 
-void main(void) {
+	int i,j;
+	pcb_t *starter; /* first process (test phase 2) */
 
-	/*extern void test();
-	extern void intHandler();
-	extern void sysHandler();
-	extern void trapHandler();
-	extern void scheduler();
-	extern void tlbHandler();*/
+	/* Initialize the correct number of CPUs the system will be using. */
+	//NUM_CPU = *((int*) NCPUs); addokbuf("c");
 
-	pcb_t *starter; //first process (test phase 2)
-	int i, j;
+	/* We need to create a matrix in RAM to populate the other new areas for CPU
+	since there is no space in ROM for them. */
+	state_t new_old_areas[NUM_CPU][8];
 
 	//0 populating new areas CPU0, using direct reference in ROM area (using memaddr)
 	//interrupt
@@ -57,11 +68,6 @@ void main(void) {
 	newArea_tlb -> pc_epc = newArea_tlb->reg_t9 = (memaddr)tlbHandler; //TODO
 
 
-	//We need to create a matrix in RAM to populate the other new areas for CPU
-	//since there is no space in ROM for them.
-
-	state_t new_old_areas[NUM_CPU][8];
-	int i, j;
 	for(i=1;i<NUM_CPU;i++) {
 		for(j=0;j < 8;j++) {
 			new_old_areas[i][j].status &= (STATUS_IEc | STATUS_KUc | STATUS_VMc);
@@ -105,15 +111,12 @@ void main(void) {
 	//that's why we insert the program counter routine in that positions.
 	//see first slide whose title is "Inizializzazione sistema"
 
-
-
 	//inizializing kernel variables
 	unsigned int Process_Counter = 0;
 	unsigned int SBlock_Counter = 0;
 	//queste variabili, numero processi arrivi e numero processi bloccati, le
 	//dichiariamo così noi oppure vanno prese da qualche parte?
 	//nei file di inclusione non le ho viste.
-
 
 	//1 inizializing semaphore and process lists
 	initPcbs();
@@ -122,12 +125,9 @@ void main(void) {
 	struct list_head ready_h;
 	INIT_LIST_HEAD(&ready_h);
 
-
-
-
 	//2 inizializing system semaphores
 
-		/*
+	/*
 		//siccome i semafori della ASL sono per i processi, immagino che i
 		//semafori di sistema vadano creati a parte, o no?
 		semd_t terminalRead;
@@ -137,21 +137,19 @@ void main(void) {
 		terminalWrite.s_value = 0;
 
 		semd_t psClock_timer;
-		psClock_timer.s_value = 0;*/
+		psClock_timer.s_value = 0; */
 
-		//oppure prelevo i primi tre semafori dal vettore sem_table
+	//oppure prelevo i primi tre semafori dal vettore sem_table
 
-		semd_t terminalRead, terminalWrite, psClock_timer;
-		psClock_timer = getSemd(0);
-		psClock_timer -> s_value = 0;
+	semd_t *terminalRead, *terminalWrite, *psClock_timer;
+	psClock_timer = getSemd(0);
+	psClock_timer -> s_value = 0;
 
-		terminalWrite = getSemd(1);
-		terminalWrite -> s_value = 0;
+	terminalWrite = getSemd(1);
+	terminalWrite -> s_value = 0;
 
-		terminalRead = getSemd(2);
-		terminalWrite -> s_value = 0;
-
-
+	terminalRead = getSemd(2);
+	terminalWrite -> s_value = 0;
 
 	//2 inizializing first process descriptor, the test process
 	starter = allocPcb();
@@ -160,7 +158,7 @@ void main(void) {
 	//interrupt abilitati
 	//kernel mode on
 	//memoria virtuale accesa, quindi devo negarla
-	starter->p_s.reg_sp = RAMTOP - FRAMESIZE;
+	starter->p_s.reg_sp = RAMTOP - FRAME_SIZE;
 	starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr)test;
 
 	//3 insert first process into ready queue
@@ -169,7 +167,6 @@ void main(void) {
 	//4 start scheduler
 	scheduler();
 
+	return 1;
+
 }
-
-
-
