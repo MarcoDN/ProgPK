@@ -8,6 +8,7 @@
 #ifndef SCHEDULER_H_
 #define SCHEDULER_H_
 
+struct list_head* initReadyQueues(int num_cpu);
 void scheduler();
 void test();
 

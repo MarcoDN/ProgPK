@@ -1,12 +1,12 @@
 /*
- * util.h
+ * utilTest.h
  *
- *  Created on: 11/giu/2012
+ *  Created on: 12/giu/2012
  *      Author: marco
  */
 
-#ifndef UTIL_H_
-#define UTIL_H_
+#ifndef UTILTEST_H_
+#define UTILTEST_H_
 
 typedef unsigned int devreg;
 
@@ -26,4 +26,4 @@ void addokbuf(char *strp);
  *	the system shuts down with a panic message */
 void adderrbuf(char *strp);
 
-#endif /* UTIL_H_ */
+#endif /* UTILTEST_H_ */

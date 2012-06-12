@@ -16,7 +16,7 @@ CFLAGS = -c -I ${INCLUDEDIR}
 #parametri del linker
 LFLAGS = -T ${SHAREDIR}elf32ltsmip.h.umpscore.x ${LIBDIR}crtso.o ${LIBDIR}libumps.o
 
-all:	clean pcb asl util scheduler traps syscalls interrupts main link
+all:	clean pcb asl utilTest scheduler traps syscalls interrupts main link
 	umps2-elf2umps -k kernel
 
 #compilazione
@@ -27,8 +27,8 @@ pcb:
 asl:
 	${CC} ${CFLAGS} asl.c
 	
-util:
-	${CC} ${CFLAGS} util.c
+utilTest:
+	${CC} ${CFLAGS} utilTest.c
 	
 scheduler:
 	${CC} ${CFLAGS} scheduler.c
@@ -51,7 +51,7 @@ p1test:
 #linking
 
 link:
-	${LD} ${LFLAGS} pcb.o asl.o util.o scheduler.o traps.o syscalls.o interrupts.o main.o -o kernel 
+	${LD} ${LFLAGS} pcb.o asl.o utilTest.o scheduler.o traps.o syscalls.o interrupts.o main.o -o kernel 
 
 clean:
 	rm -f *.o kernel*
