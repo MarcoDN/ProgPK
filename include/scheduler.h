@@ -8,7 +8,8 @@
 #ifndef SCHEDULER_H_
 #define SCHEDULER_H_
 
+void initAllCPUs();
 void initReadyQueues();
-void scheduler();
+void schedule();
 
 #endif /* SCHEDULER_H_ */

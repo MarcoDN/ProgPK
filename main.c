@@ -68,8 +68,8 @@ int main() {
 	populateArea((state_t *)TLB_NEWAREA,(memaddr)tlbHandler);
 
 	/* Setting up CPUn (with n >= 1) new areas in RAM, in a defined array of state_t pointers. */
-	for (i=1; i < NUM_CPU; i++)
-		for (j=0; j < 4; j++)
+	for (i = 1; i < NUM_CPU; i++)
+		for (j = 0; j < 4; j++)
 
 			switch (j) {
 
@@ -112,14 +112,13 @@ int main() {
 
 	STST(&starter2->p_s);
 	starter2->p_s.status |= STATUS_IEc | STATUS_INT_UNMASKED;
-	starter2->p_s.reg_sp = RAMTOP - (FRAME_SIZE*2);
+	starter2->p_s.reg_sp = starter->p_s.reg_sp - FRAME_SIZE;
 	starter2->p_s.pc_epc = starter2->p_s.reg_t9 = (memaddr) test2;
 
 	insertProcQ(&readyQ[1], starter);
 	insertProcQ(&readyQ[0], starter2);
 
-	/* Starting the scheduler. */
-	scheduler();
+	schedule();
 
 	return 1;
 }
