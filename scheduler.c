@@ -13,48 +13,71 @@
 
 #include "utilTest.h"
 
+#define MAX_PRIORITY 5
 #define MAX_CPU 16
 
-/* Variables describing number of running/waiting processes. */
-unsigned int Process_Counter = 0;
-unsigned int Soft_Block_Counter = 0;
+extern int NUM_CPU;
 
-/* Ready Queues. */
-struct list_head readyQ[MAX_CPU];
+/* Timeslice in microseconds. */
+#define TIMESLICE 5000
+
+/* Variables describing number of running/waiting processes. */
+unsigned int process_counter = 0;
+unsigned int soft_block_counter = 0;
+
+/* Multiple Priority Queues. */
+struct list_head readyQ[MAX_PRIORITY+1];
 /* Running processes. */
 pcb_t* running[MAX_CPU];
 
-/* Number of currently used CPUs. */
-extern int NUM_CPU;
-
-struct list_head* initReadyQueues(int num_cpu) {
+void initReadyQueues() {
 
 	int i;
 
-	for (i = 0; i < num_cpu; i++)
+	for (i = 0; i < MAX_PRIORITY+1; i++)
 		mkEmptyProcQ(&readyQ[i]);
-
-	return &readyQ[0];
-
 }
 
 void test() {
 
 	int i;
 
-	for (i = 0; i < 10000; i++)
-		addokbuf("Test!");
+	for (i = 0; i < 10; i++)
+		addokbuf("Test! ");
+
 }
 
 void scheduler() {
 
-	int i;
+	int i,j;
 
-	for (i = 0; i < NUM_CPU; i++)
-		if (!emptyProcQ(&readyQ[i]))
-			running[i] = headProcQ(&readyQ[i]);
+	for (i = MAX_PRIORITY; i >= 0; i--) {
 
-	if (running[0] != NULL)
-		LDST(&running[0]->p_s);
+		pcb_t *curr;
+
+		if ((curr = headProcQ(&readyQ[i])) != NULL) {
+
+			for (j = 0; j < NUM_CPU; j++)
+				if (running[j] == NULL) {
+					running[j] = curr;
+
+					process_counter++;
+
+					SET_IT(TIMESLICE);
+
+					if (j > 0) {
+
+						state_t *currState; /* Quale state passare come secondo parametro..? */
+
+						INITCPU(j,&curr->p_s,currState);
+						break;
+					}
+					else
+						LDST(&curr->p_s);
+				}
+
+		}
+
+	}
 
 }

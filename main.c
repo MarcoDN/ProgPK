@@ -20,8 +20,17 @@
 
 #include "utilTest.h"
 
+#define MAX_CPU 16
+
 /* Address of register containing the number of CPUs. */
 #define NCPUs 0x10000500
+
+/* Multiple Priority Queues. */
+extern struct list_head readyQ[];
+
+/* We need to create a matrix in RAM to populate the other new areas for CPU
+since there is no space in ROM for them. */
+state_t new_old_areas[MAX_CPU][8];
 
 /* Numbers of CPUs the system will be using. */
 int NUM_CPU;
@@ -33,10 +42,6 @@ int main() {
 
 	/* Initialize the correct number of CPUs the system will be using. */
 	NUM_CPU = *((memaddr*) NCPUs);
-
-	/* We need to create a matrix in RAM to populate the other new areas for CPU
-	since there is no space in ROM for them. */
-	state_t new_old_areas[NUM_CPU][8];
 
 	//0 populating new areas CPU0, using direct reference in ROM area (using memaddr)
 	//interrupt
@@ -69,21 +74,17 @@ int main() {
 			new_old_areas[i][j].status &= (STATUS_IEc | STATUS_KUc | STATUS_VMc);
 			new_old_areas[i][j].reg_sp = RAMTOP;
 
-			if(j==0){
+			if(j==0)
+				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)intHandler;
+
+			if(j==2)
 				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)sysHandler;
-			}
 
-			if(j==2){
+			if(j==4)
 				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)trapHandler;
-			}
 
-			if(j==4){
+			if(j==6)
 				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)tlbHandler;
-			}
-
-			if(j==6){
-				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)trapHandler;
-			}
 
 		}
 
@@ -96,22 +97,26 @@ int main() {
 	initASL();
 
 	//2 inizializing system semaphores
-/*
-	semd_t *terminalRead, *terminalWrite, *psClock_timer;
-	psClock_timer = getSemd(0);
-	psClock_timer -> s_value = 0;
-	addokbuf("aa");
-	terminalWrite = getSemd(1);
-	terminalWrite -> s_value = 0;
 
-	terminalRead = getSemd(2);
-	terminalWrite -> s_value = 0; */
+
+	semd_t *terminalRead, *terminalWrite, *psClock_timer;
+
+	if ((psClock_timer = getSemd(0)) != NULL)
+		psClock_timer -> s_value = 0;
+
+	if ((terminalWrite = getSemd(1)) != NULL)
+		terminalWrite -> s_value = 0;
+
+	if ((terminalRead = getSemd(2)) != NULL)
+		terminalRead -> s_value = 0;
+
 
 	//2 inizializing first process descriptor, the test process
 
 	starter = allocPcb();
 
-	starter ->p_s.status = starter->p_s.status | STATUS_IEc | STATUS_INT_UNMASKED | STATUS_KUc | (~STATUS_VMc);
+	/* Adesso funziona! Ci voleva l'and bit a bit, non l'or. */
+	starter ->p_s.status &= ( STATUS_IEc | STATUS_INT_UNMASKED | STATUS_KUc | ~STATUS_VMc );
 
 	//dal file const.h leggiamo che questi tre valori significano
 	//interrupt abilitati
@@ -120,9 +125,10 @@ int main() {
 	starter->p_s.reg_sp = RAMTOP - FRAME_SIZE;
 	starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr) test;
 
-	struct list_head* CP0Queue = initReadyQueues(NUM_CPU);
+	initReadyQueues();
+
 	/* Insert first process into the CPU0 ready queue. */
-	insertProcQ(CP0Queue, starter);
+	insertProcQ(&readyQ[0], starter);
 
 	//4 start scheduler
 	scheduler();
