@@ -18,12 +18,8 @@
 #include "syscalls.h"
 #include "interrupts.h"
 
+#include "sysvars.h"
 #include "utilTest.h"
-
-#define MAX_CPU 16
-
-/* Address of register containing the number of CPUs. */
-#define NCPUs 0x10000500
 
 /* Multiple Priority Queues. */
 extern struct list_head readyQ[];
@@ -32,72 +28,63 @@ extern struct list_head readyQ[];
 since there is no space in ROM for them. */
 state_t new_old_areas[MAX_CPU][8];
 
-/* Numbers of CPUs the system will be using. */
-int NUM_CPU;
+/* Sets up the state_t pointed by area to invoke the handler stored at handlerAddr memaddr.
+ * Disables interrupts and virtual memory. Enable Kernel Mode.
+ *  */
+void populateArea(state_t* area, memaddr handlerAddr) {
+
+	area->status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
+	area->reg_sp = RAMTOP;
+	area->pc_epc = area->reg_t9 = handlerAddr;
+
+}
+
+void test() {
+
+	int i;
+
+	for (i = 0; i < 6; i++)
+		addokbuf("1 ");
+
+}
+
+void test2() {
+
+	int i;
+
+	for (i = 0; i < 6; i++)
+		addokbuf("2 ");
+
+}
 
 int main() {
 
 	int i,j;
-	pcb_t *starter; /* first process (test phase 2) */
 
-	/* Initialize the correct number of CPUs the system will be using. */
-	NUM_CPU = *((memaddr*) NCPUs);
+	/* Setting up CPU0 new areas in ROM. */
+	populateArea((state_t *)SYSBK_NEWAREA,(memaddr)sysHandler);
+	populateArea((state_t *)INT_NEWAREA,(memaddr)intHandler);
+	populateArea((state_t *)PGMTRAP_NEWAREA,(memaddr)trapHandler);
+	populateArea((state_t *)TLB_NEWAREA,(memaddr)tlbHandler);
 
-	//0 populating new areas CPU0, using direct reference in ROM area (using memaddr)
-	//interrupt
-	state_t * newArea_int = (state_t *)INT_NEWAREA;
-	newArea_int -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
-	newArea_int -> reg_sp = RAMTOP;
-	newArea_int -> pc_epc = newArea_int->reg_t9 = (memaddr)intHandler; //TODO
+	/* Setting up CPUn (with n >= 1) new areas in RAM, in a defined array of state_t pointers. */
+	for (i=1; i < NUM_CPU; i++)
+		for (j=0; j < 4; j++)
 
-	//system call
-	state_t * newArea_sys = (state_t *)SYSBK_NEWAREA;
-	newArea_sys -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
-	newArea_sys -> reg_sp = RAMTOP;
-	newArea_sys -> pc_epc = newArea_sys->reg_t9 = (memaddr)sysHandler; //TODO
+			switch (j) {
 
-	//trap
-	state_t * newArea_trap = (state_t *)PGMTRAP_NEWAREA;
-	newArea_trap -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
-	newArea_trap -> reg_sp = RAMTOP;
-	newArea_trap -> pc_epc = newArea_trap->reg_t9 = (memaddr)trapHandler; //TODO
+			case 0: populateArea(&new_old_areas[i][0],(memaddr)intHandler); break;
+			case 1: populateArea(&new_old_areas[i][2],(memaddr)sysHandler); break;
+			case 2: populateArea(&new_old_areas[i][4],(memaddr)trapHandler); break;
+			case 3: populateArea(&new_old_areas[i][6],(memaddr)tlbHandler); break;
 
-	//tlb
-	state_t * newArea_tlb = (state_t *)TLB_NEWAREA;
-	newArea_tlb -> status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
-	newArea_tlb -> reg_sp = RAMTOP;
-	newArea_tlb -> pc_epc = newArea_tlb->reg_t9 = (memaddr)tlbHandler; //TODO
+			}
 
-	for(i=1; i < NUM_CPU; i++)
-		for(j=0; j < 8; j++) {
-
-			new_old_areas[i][j].status &= (STATUS_IEc | STATUS_KUc | STATUS_VMc);
-			new_old_areas[i][j].reg_sp = RAMTOP;
-
-			if(j==0)
-				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)intHandler;
-
-			if(j==2)
-				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)sysHandler;
-
-			if(j==4)
-				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)trapHandler;
-
-			if(j==6)
-				new_old_areas[i][j].pc_epc = new_old_areas[i][j].reg_t9 = (memaddr)tlbHandler;
-
-		}
-
-	//new areas are located in even position, instead old areas are in odd positions.
-	//that's why we insert the program counter routine in that positions.
-	//see first slide whose title is "Inizializzazione sistema"
-
-	//1 inizializing semaphore and process lists
+	/* Initialization of underlaying data structures. */
 	initPcbs();
 	initASL();
 
-	//2 inizializing system semaphores
-
+	/* Inizialization of device semaphores. TODO */
 
 	semd_t *terminalRead, *terminalWrite, *psClock_timer;
 
@@ -110,29 +97,29 @@ int main() {
 	if ((terminalRead = getSemd(2)) != NULL)
 		terminalRead -> s_value = 0;
 
+	/* Initialization of all ready queues maintained by the scheduler. */
+	initReadyQueues();
 
-	//2 inizializing first process descriptor, the test process
+	/* Inizialization of first process, and its insertion into readQueue. */
+	pcb_t *starter = allocPcb();
 
-	starter = allocPcb();
-
-	/* Adesso funziona! Ci voleva l'and bit a bit, non l'or. */
-	starter ->p_s.status &= ( STATUS_IEc | STATUS_INT_UNMASKED | STATUS_KUc | ~STATUS_VMc );
-
-	//dal file const.h leggiamo che questi tre valori significano
-	//interrupt abilitati
-	//kernel mode on
-	//memoria virtuale accesa, quindi devo negarla
+	STST(&starter->p_s);
+	starter->p_s.status |= STATUS_IEc | STATUS_INT_UNMASKED;
 	starter->p_s.reg_sp = RAMTOP - FRAME_SIZE;
 	starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr) test;
 
-	initReadyQueues();
+	pcb_t *starter2 = allocPcb();
 
-	/* Insert first process into the CPU0 ready queue. */
-	insertProcQ(&readyQ[0], starter);
+	STST(&starter2->p_s);
+	starter2->p_s.status |= STATUS_IEc | STATUS_INT_UNMASKED;
+	starter2->p_s.reg_sp = RAMTOP - (FRAME_SIZE*2);
+	starter2->p_s.pc_epc = starter2->p_s.reg_t9 = (memaddr) test2;
 
-	//4 start scheduler
+	insertProcQ(&readyQ[1], starter);
+	insertProcQ(&readyQ[0], starter2);
+
+	/* Starting the scheduler. */
 	scheduler();
 
 	return 1;
-
 }

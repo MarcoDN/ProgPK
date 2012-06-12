@@ -10,6 +10,5 @@
 
 void initReadyQueues();
 void scheduler();
-void test();
 
 #endif /* SCHEDULER_H_ */

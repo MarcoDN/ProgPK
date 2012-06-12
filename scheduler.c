@@ -11,71 +11,47 @@
 #include "libumps.h"
 #include "types11.h"
 
+#include "sysvars.h"
 #include "utilTest.h"
-
-#define MAX_PRIORITY 5
-#define MAX_CPU 16
-
-extern int NUM_CPU;
-
-/* Timeslice in microseconds. */
-#define TIMESLICE 5000
 
 /* Variables describing number of running/waiting processes. */
 unsigned int process_counter = 0;
 unsigned int soft_block_counter = 0;
 
-/* Multiple Priority Queues. */
-struct list_head readyQ[MAX_PRIORITY+1];
-/* Running processes. */
-pcb_t* running[MAX_CPU];
+/* Multiple Queues. One for each processor */
+struct list_head readyQ[MAX_CPU];
+pcb_t *running[MAX_CPU];
+
+extern state_t new_old_areas[MAX_CPU][8];
 
 void initReadyQueues() {
 
 	int i;
 
-	for (i = 0; i < MAX_PRIORITY+1; i++)
+	for (i = 0; i < NUM_CPU; i++)
 		mkEmptyProcQ(&readyQ[i]);
 }
 
-void test() {
-
-	int i;
-
-	for (i = 0; i < 10; i++)
-		addokbuf("Test! ");
-
-}
-
+/* Main scheduling function. */
 void scheduler() {
 
 	int i,j;
 
-	for (i = MAX_PRIORITY; i >= 0; i--) {
+	for (i = NUM_CPU-1; i >= 0; i--) {
 
-		pcb_t *curr;
+		if ((running[i] = removeProcQ(&readyQ[i])) != NULL) {
 
-		if ((curr = headProcQ(&readyQ[i])) != NULL) {
+			if (--running[i]->priority < 0)
+				running[i]->priority = 0;
 
-			for (j = 0; j < NUM_CPU; j++)
-				if (running[j] == NULL) {
-					running[j] = curr;
+			process_counter++;
 
-					process_counter++;
+			setTIMER(TIMESLICE);
 
-					SET_IT(TIMESLICE);
-
-					if (j > 0) {
-
-						state_t *currState; /* Quale state passare come secondo parametro..? */
-
-						INITCPU(j,&curr->p_s,currState);
-						break;
-					}
-					else
-						LDST(&curr->p_s);
-				}
-
+			if (i > 0)
+				INITCPU(i,&running[i]->p_s,new_old_areas[i]);
+			else
+				LDST(&running[i]->p_s);
 		}
 
 	}
