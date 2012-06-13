@@ -78,31 +78,55 @@ void sysHandler() {
 		actual.reg_v0 = 0; }
 		break;
 
-		//VERHOGEN
-		case 4:	{
+		//PASSEREN
+		case 5:	{
 
 			int key = actual.reg_a1; //ottengo la key del semaforo
 			semd_t* sem = getSemd(key);
 
 			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
-			if (sem->s_value == 0) {
+			sem->s_value = (sem->s_value)--;
+			if (sem->s_value <= 0) {
 
-				//se il semaforo ha valore 0, il processo si blocca
+				//se il semaforo ha valore 0 o minore, il processo si blocca
 				//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
-				pcb_t *caller;
+				pcb_t *caller = running[cpu];
 				caller->p_semkey = key;
 				outProcQ(&readyQ[cpu],caller);
 				insertBlocked(key, caller);
-				//devo inserire adesso questo semaforo nella asl?
+				//devo inserire adesso questo semaforo nella asl
+
 
 			}
 
-			else sem->s_value = (sem->s_value)--;
 			CAS(&sem_esclusion[key], BUSY, FREE);
 
 		} break;
 
-		}
-	}
+
+
+
+
+		//VERHOGEN
+		case 4: {
+			int key = actual.reg_a1; //ottengo la key del semaforo
+			semd_t* sem = getSemd(key); //ottengo puntatore al semaforo di quella key
+
+			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ;
+			sem->s_value = (sem->s_value)++;
+
+			//se il semaforo ha dei processi bloccati in coda
+			if(!(emptyProcQ(sem->s_procQ))) {
+				pcb_t* wake_pcb = removeBlocked(key);
+				//inserisci pcb in una ready queue, quella di lunghezza minore
+			}
+			else {/*togliere il semaforo dalla ASL*/}
+			CAS(&sem_esclusion[key], BUSY, FREE);
+		} break;
+
+
+
+	    } //fine switch
+	} //fine if((CAUSE_EXCCODE_GET(cause)) == EXC_SYSCALL)
 	return;
 }
