@@ -37,7 +37,7 @@ void intHandler() {
 
 	}else if(CAUSE_IP_GET(cause,INT_TERMINAL)){/*terminal interrupt*/
 		/*set inteval timer*/
-	/*	SET_IT(5000);
+		SET_IT(5000);
 		/*eseguo v su system call*/
 		/*if(check_V()){//return state device on process v0
 			currentThread->t_state.reg_v0=(state_t *)INT_OLDAREA->reg_v0;
@@ -59,5 +59,5 @@ void intHandler() {
 	 * else chiamo la sys8*/
 
 
-*/
+
 }

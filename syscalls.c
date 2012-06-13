@@ -28,11 +28,9 @@ void sysHandler() {
 
 		state_t actual;
 		STST(&actual); //estraggo lo stato del processo attuale
-
 		switch(actual.reg_a0) {
-
-			//CREATEPROCESS
-			case 1: state_t * son_state = actual.reg_a1; //indirizzo dello state_t dato del processo figlio
+			case 0x1:
+				state_t *son_state = actual.reg_a1; //indirizzo dello state_t dato del processo figlio
 					 pcb_t* son = allocPcb(); //estraggo nuovo pcb per il processo figlio
 					 son->priority = actual.reg_a2; //priorità del processo figlio
 					 // copio nel struttura state_t del pc, tutti i campi dello state_t del processo figlio che ci viene dato
@@ -47,12 +45,10 @@ void sysHandler() {
 						 son->p_s.gpr[i] = son_state->gpr[i];
 					 }
 					 //adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?
-					 insertChild(/*padre*/, son);
+					 insertChild(NULL, son);
 					 //adesso da qui devo inserire il pcb appena creato in una coda ready dei processori.
 					 //le esaminiamo tutte e scegliamo di inserirlo nella coda a lunghezza più corta
 					 break;
-
-
 		}
 	}
 }
