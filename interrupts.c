@@ -21,8 +21,20 @@
 #include "utilTest.h"
 #include "copy.h"
 
+extern state_t new_old_areas[16][8];
+
 //extern pcb_t *locksemaphore;
 void intHandler() {
+
+	int cpu = getPRID();
+
+	running[cpu]->p_s.pc_epc += WORD_SIZE;
+	running[cpu] = NULL;
+
+	if (cpu==0)
+		LDST(&scheduler);
+	else
+		INITCPU(cpu,&scheduler,new_old_areas[cpu]);
 
 	int cause = getCAUSE();
 	if(CAUSE_IP_GET(cause,INT_TIMER)){

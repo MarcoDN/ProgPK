@@ -28,9 +28,10 @@ pcb_t *running[MAX_CPU];
 /* Counter of processes assigned to each CPU, for load balancing. */
 int numProc[MAX_CPU];
 
-state_t schedulers[MAX_CPU];
+state_t scheduler;
 
 extern state_t new_old_areas[MAX_CPU][8];
+extern void test();
 
 /* Main scheduling function. */
 void schedule() {
@@ -90,60 +91,64 @@ void schedule2() {
 /* Returns the PRID of the processor with less processes assigned. */
 int getShortestQ() {
 
-	int i,min = MAXPROC;
+	int i,prid,min = MAXPROC;
 
 	for (i = 0; i < NUM_CPU; i++)
-		if (numProc[i] < min)
-			min = i;
+		if (numProc[i] < min) {
+			min = numProc[i];
+			prid = i;
+		}
 
-	return i;
+	return prid;
 }
 
 /* Assigns a process to a Processor, waking it up if needed. */
 void assignProcess(pcb_t* p) {
 
-	int min = getShortestQ();
+	int prid = getShortestQ();
 
-	insertProcQ(&readyQ[min],p);
+	insertProcQ(&readyQ[prid],p);
 
-	numProc[min]++;
+	numProc[prid]++;
 
-	if (numProc[min] == 1) {
-
-		state_t scheduler;
-
-		STST(&scheduler);
-		scheduler.status |= STATUS_IEc | STATUS_INT_UNMASKED;
-		scheduler.reg_sp = RAMTOP - FRAME_SIZE;
-		scheduler.pc_epc = scheduler.reg_t9 = (memaddr) schedule;
-
-		INITCPU(min,&scheduler,new_old_areas[min]);
-
-	}
+	if (numProc[prid] == 1)
+		if (prid > 0)
+			INITCPU(prid,&scheduler,new_old_areas[prid]);
+		else
+			LDST(&scheduler);
 
 }
 
 /* Initiate all the scheduler's structures. */
-void initScheduler() {
+void initScheduler(int offset) {
 
 	int i;
-	U32 mem_base = SCHEDULER1;
 
-	for (i = 0; i < NUM_CPU; i++) {
+	scheduler.status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
+	scheduler.reg_sp = RAMTOP - (FRAME_SIZE * offset);
+	scheduler.pc_epc = scheduler.reg_t9 = (memaddr) schedule;
+
+	for (i = NUM_CPU-1; i >= 0; i--) {
 
 		mkEmptyProcQ(&readyQ[i]);
 
-		if (i > 0) {
+		numProc[i] = 0;
 
-			STST(&schedulers[i]);
-			schedulers[i].status |= STATUS_IEp | STATUS_INT_UNMASKED;
-			schedulers[i].reg_sp = mem_base;
-			schedulers[i].pc_epc = schedulers[i].reg_t9 = (memaddr) schedule;
+		if (i == 0) {
 
-			INITCPU(i,&schedulers[i],new_old_areas[i]);
+			/* Inizialization of first process, and its insertion into readyQueue. */
+			pcb_t *starter = allocPcb();
 
-			mem_base+= FRAME_SIZE;
+			starter->p_s.status |= STATUS_IEp | STATUS_INT_UNMASKED;
+			starter->p_s.reg_sp = RAMTOP - (FRAME_SIZE * (offset+1));
+			starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr) test;
+
+			/* Entry point. */
+			assignProcess(starter);
+
 		}
+		else
+			INITCPU(i,&scheduler,new_old_areas[i]);
 
 	}
 

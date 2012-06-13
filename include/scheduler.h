@@ -13,8 +13,9 @@ extern unsigned int soft_block_counter;
 extern struct list_head readyQ[];
 extern pcb_t *running[];
 extern int numProc[];
+extern state_t scheduler;
 
-extern void initScheduler();
-extern void schedule();
+extern void initScheduler(int offset);
+extern void assignProcess(pcb_t *p);
 
 #endif /* SCHEDULER_H_ */
