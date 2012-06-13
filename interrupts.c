@@ -19,6 +19,7 @@
 #include "interrupts.h"
 
 #include "utilTest.h"
+#include "copy.h"
 
 extern pcb_t *locksemaphore;
 void intHandler() {
@@ -30,21 +31,33 @@ void intHandler() {
 		/*eseguo v su system call*/
 
 
-				/* if v non sblocca salvo stato dispositivo
-				 * &currentThread->t_state)
-				 * else chiamo la sys8*/
+		/* if v non sblocca salvo stato dispositivo
+		 * &currentThread->t_state)
+		 * else chiamo la sys8*/
 
 	}else if(CAUSE_IP_GET(cause,INT_TERMINAL)){/*terminal interrupt*/
 		/*set inteval timer*/
-		SET_IT(5000);
+	/*	SET_IT(5000);
 		/*eseguo v su system call*/
+		/*if(check_V()){//return state device on process v0
+			currentThread->t_state.reg_v0=(state_t *)INT_OLDAREA->reg_v0;
+		}
+		else{
+			copyState((state_t *)INT_OLDAREA, &currentThread->t_state);
+			unsigned int * terminal;
+			terminal=(unsigned int) TERMINAL0ADDR +0x0000000c;
+			if(((unsigned int) (TERMINAL0ADDR+0x00000008)&0x0000ff00)==0x0a)/*check ack*/
+		//	*terminal=0x00000000;/*reset terminal*/
+		//	else	*terminal=0x00000001;
+		//	terminal=(unsigned int)TERMINAL0ADDR+0x00000008;
+			/*lori fa partire la sys8*/
+			/*metterlo in attesa con funzione di marco*/
+		//}
+	//}
 
-		/* if v non sblocca salvo stato dispositivo
-		 * else chiamo la sys8*/
-	}
-	else{
-		return;
-	}
+	/* if v non sblocca salvo stato dispositivo
+	 * else chiamo la sys8*/
 
+
+*/
 }
-
