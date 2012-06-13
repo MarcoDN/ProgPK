@@ -97,16 +97,20 @@ int main() {
 	if ((terminalRead = getSemd(2)) != NULL)
 		terminalRead -> s_value = 0;
 
-	/* Initialization of all ready queues maintained by the scheduler. */
-	initReadyQueues();
+	/* Scheduler initialization process. */
+	initScheduler();
 
-	/* Inizialization of first process, and its insertion into readQueue. */
+	/* Inizialization of first process, and its insertion into readyQueue. */
 	pcb_t *starter = allocPcb();
 
 	STST(&starter->p_s);
 	starter->p_s.status |= STATUS_IEc | STATUS_INT_UNMASKED;
-	starter->p_s.reg_sp = RAMTOP - FRAME_SIZE;
+	starter->p_s.reg_sp = RAMTOP - (FRAME_SIZE*16);
 	starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr) test;
+
+	insertProcQ(&readyQ[0], starter);
+
+	/*
 
 	pcb_t *starter2 = allocPcb();
 
@@ -115,8 +119,7 @@ int main() {
 	starter2->p_s.reg_sp = starter->p_s.reg_sp - FRAME_SIZE;
 	starter2->p_s.pc_epc = starter2->p_s.reg_t9 = (memaddr) test2;
 
-	insertProcQ(&readyQ[1], starter);
-	insertProcQ(&readyQ[0], starter2);
+	insertProcQ(&readyQ[1], starter2); */
 
 	schedule();
 

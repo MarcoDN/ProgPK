@@ -21,7 +21,7 @@
 #include "utilTest.h"
 #include "copy.h"
 
-extern pcb_t *locksemaphore;
+//extern pcb_t *locksemaphore;
 void intHandler() {
 
 	int cause = getCAUSE();
@@ -50,10 +50,10 @@ void intHandler() {
 		//	*terminal=0x00000000;/*reset terminal*/
 		//	else	*terminal=0x00000001;
 		//	terminal=(unsigned int)TERMINAL0ADDR+0x00000008;
-			/*lori fa partire la sys8*/
-			/*metterlo in attesa con funzione di marco*/
+		/*lori fa partire la sys8*/
+		/*metterlo in attesa con funzione di marco*/
 		//}
-	//}
+	}
 
 	/* if v non sblocca salvo stato dispositivo
 	 * else chiamo la sys8*/

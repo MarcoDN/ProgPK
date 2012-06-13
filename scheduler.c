@@ -28,16 +28,9 @@ pcb_t *running[MAX_CPU];
 /* Counter of processes assigned to each CPU, for load balancing. */
 int numProc[MAX_CPU];
 
+state_t schedulers[MAX_CPU];
+
 extern state_t new_old_areas[MAX_CPU][8];
-
-/* Initiate all the processors' ready queues. */
-void initReadyQueues() {
-
-	int i;
-
-	for (i = 0; i < NUM_CPU; i++)
-		mkEmptyProcQ(&readyQ[i]);
-}
 
 /* Main scheduling function. */
 void schedule() {
@@ -125,6 +118,32 @@ void assignProcess(pcb_t* p) {
 		scheduler.pc_epc = scheduler.reg_t9 = (memaddr) schedule;
 
 		INITCPU(min,&scheduler,new_old_areas[min]);
+
+	}
+
+}
+
+/* Initiate all the scheduler's structures. */
+void initScheduler() {
+
+	int i;
+	U32 mem_base = SCHEDULER1;
+
+	for (i = 0; i < NUM_CPU; i++) {
+
+		mkEmptyProcQ(&readyQ[i]);
+
+		if (i > 0) {
+
+			STST(&schedulers[i]);
+			schedulers[i].status |= STATUS_IEp | STATUS_INT_UNMASKED;
+			schedulers[i].reg_sp = mem_base;
+			schedulers[i].pc_epc = schedulers[i].reg_t9 = (memaddr) schedule;
+
+			INITCPU(i,&schedulers[i],new_old_areas[i]);
+
+			mem_base+= FRAME_SIZE;
+		}
 
 	}
 

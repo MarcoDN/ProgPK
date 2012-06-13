@@ -22,4 +22,7 @@
 /* Highest priority processes can have. */
 #define MAX_PRIORITY 5
 
+/* Memory Locations */
+#define SCHEDULER1 (RAMTOP - FRAME_SIZE)
+
 #endif /* SYSVARS_H_ */

@@ -11,6 +11,9 @@
 #include "asl.e"
 #include "pcb.e"
 
+#include "sysvars.h"
+#include "scheduler.h"
+
 #define FREE 1
 #define BUSY 0
 unsigned int sem_esclusion[MAXPROC]; //tutti inizializzati e free
@@ -20,7 +23,7 @@ unsigned int sem_esclusion[MAXPROC]; //tutti inizializzati e free
 
 void sysHandler() {
 
-	int cause = getCAUSE();
+	int cpu = getPRID(),cause = getCAUSE();
 
 	//le system calls differiscono dal contenuto dei breakpoints a seconda del valore della
 	//parte di registro cause detta ExcCode. Quindi ci sono due punti possibili: o è una system call,
@@ -38,64 +41,66 @@ void sysHandler() {
 
 		switch (actual.reg_a0) {
 
-			//CREATEPROCESS
-			case 1: state_t* son_state = actual.reg_a1; //indirizzo dello state_t dato del processo figlio
+		//CREATEPROCESS
+		case 1: {
 
-					 //CAS
-					 pcb_t* son = allocPcb(); //estraggo nuovo pcb per il processo figlio
+		state_t* son_state = &actual; //indirizzo dello state_t dato del processo figlio
 
-					 //non posso più creare processi, ho finito tutti i pcb disponibili
-					 if (son == NULL) {
-						 actual.reg_v0 = -1;
-						 return;
-					 }
+		//CAS
+		pcb_t* son = allocPcb(); //estraggo nuovo pcb per il processo figlio
 
-					 son->priority = actual.reg_a2; //priorità del processo figlio
-					 // copio nel struttura state_t del pc, tutti i campi dello state_t del processo figlio che ci viene dato
-					 son->p_s.pc_epc = son_state ->pc_epc;
-					 son->p_s.entry_hi = son_state ->entry_hi;
-					 son->p_s.cause = son_state -> cause;
-					 son->p_s.status = son_state -> status;
-					 son->p_s.hi = son_state -> hi;
-					 son->p_s.lo = son_state -> lo;
-					 int i;
-					 for(i=0;i<=30;i++) {
-						 son->p_s.gpr[i] = son_state->gpr[i];
-					 }
-					 //adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?
+		//non posso più creare processi, ho finito tutti i pcb disponibili
+		if (son == NULL) {
+			actual.reg_v0 = -1;
+			return;
+		}
 
-					 insertChild(/*padre*/, son);
-					 //adesso da qui devo inserire il pcb appena creato in una coda ready dei processori.
-					 //le esaminiamo tutte e scegliamo di inserirlo nella coda a lunghezza più corta
+		son->priority = actual.reg_a2; //priorità del processo figlio
+		// copio nel struttura state_t del pc, tutti i campi dello state_t del processo figlio che ci viene dato
+		son->p_s.pc_epc = son_state ->pc_epc;
+		son->p_s.entry_hi = son_state ->entry_hi;
+		son->p_s.cause = son_state -> cause;
+		son->p_s.status = son_state -> status;
+		son->p_s.hi = son_state -> hi;
+		son->p_s.lo = son_state -> lo;
+		int i;
+		for(i=0;i<=30;i++) {
+			son->p_s.gpr[i] = son_state->gpr[i];
+		}
+		//adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?
 
-					 //CAS
-					 /* process_counter++ */
-					 actual.reg_v0 = 0;
-					 break;
+		insertChild(running[cpu], son);
+		//adesso da qui devo inserire il pcb appena creato in una coda ready dei processori.
+		//le esaminiamo tutte e scegliamo di inserirlo nella coda a lunghezza più corta
 
-			//VERHOGEN
-			case 4:	int key = actual.reg_a1; //ottengo la key del semaforo
-					semd_t* sem = getSemd(key);
+		//CAS
+		/* process_counter++ */
+		actual.reg_v0 = 0; }
+		break;
 
-					while(!CAS(sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
-					if (sem->s_value == 0) {
+		//VERHOGEN
+		case 4:	{
 
-						//se il semaforo ha valore 0, il processo si blocca
-						//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
-						pcb_t *caller;
-						caller->p_semkey = key;
-						outProcQ(/*coda ready*/, caller);
-						insertBlocked(key, caller);
-						//devo inserire adesso questo semaforo nella asl?
+			int key = actual.reg_a1; //ottengo la key del semaforo
+			semd_t* sem = getSemd(key);
 
-					}
+			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
+			if (sem->s_value == 0) {
 
-					else sem->s_value = (sem->s_value)--;
-					CAS(sem_esclusion[key], BUSY, FREE);
+				//se il semaforo ha valore 0, il processo si blocca
+				//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
+				pcb_t *caller;
+				caller->p_semkey = key;
+				outProcQ(&readyQ[cpu],caller);
+				insertBlocked(key, caller);
+				//devo inserire adesso questo semaforo nella asl?
 
-					break;
+			}
 
+			else sem->s_value = (sem->s_value)--;
+			CAS(&sem_esclusion[key], BUSY, FREE);
 
+		} break;
 
 		}
 	}
