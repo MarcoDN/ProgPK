@@ -8,6 +8,9 @@
 #ifndef SYSVARS_H_
 #define SYSVARS_H_
 
+/* Processor Local Timer bit's position. */
+#define STATUS_TE 0x08000000
+
 /* Maximum number of supported CPUs. */
 #define MAX_CPU 16
 
@@ -21,5 +24,8 @@
 
 /* Highest priority processes can have. */
 #define MAX_PRIORITY 5
+
+/* Entry point function's name. */
+#define ENTRY_POINT (memaddr) test
 
 #endif /* SYSVARS_H_ */

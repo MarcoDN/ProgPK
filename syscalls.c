@@ -67,7 +67,7 @@ void sysHandler() {
 			son->p_s.hi = son_state -> hi;
 			son->p_s.lo = son_state -> lo;
 			int i;
-			for(i=0;i<=30;i++) {
+			for(i = 0; i < 29; i++) {
 				son->p_s.gpr[i] = son_state->gpr[i];
 			}
 			//adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?

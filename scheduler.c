@@ -52,7 +52,8 @@ void schedule() {
 		/* EXIT CS. */
 		process_counter_Lock = 0;
 
-		setTIMER(TIMESLICE);
+		/* Sets the Interval Timer delay with the given timeslice, for RR purpose. */
+		//SET_IT(TIMESLICE);
 
 		LDST(&running[i]->p_s);
 
@@ -62,7 +63,7 @@ void schedule() {
 
 }
 
-/* Main scheduling function.
+/*
 void schedule2() {
 
 	int i,j;
@@ -76,7 +77,7 @@ void schedule2() {
 
 			process_counter++;
 
-			setTIMER(TIMESLICE);
+			SET_IT(TIMESLICE);
 
 			if (i > 0)
 				INITCPU(i,&running[i]->p_s,new_old_areas[i]);
@@ -91,7 +92,7 @@ void schedule2() {
 /* Returns the PRID of the processor with less processes assigned. */
 int getShortestQ() {
 
-	int i,prid,min = MAXPROC;
+	int i,prid,min = MAXPROC; /* One processor can have at most MAXPROC processes. */
 
 	for (i = 0; i < NUM_CPU; i++)
 		if (numProc[i] < min) {
@@ -139,9 +140,12 @@ void initScheduler(int offset) {
 			/* Inizialization of first process, and its insertion into readyQueue. */
 			pcb_t *starter = allocPcb();
 
+			/* TESTING
+			starter->p_s.status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
+			*/
 			starter->p_s.status |= STATUS_IEp | STATUS_INT_UNMASKED;
 			starter->p_s.reg_sp = RAMTOP - (FRAME_SIZE * (offset+1));
-			starter->p_s.pc_epc = starter->p_s.reg_t9 = (memaddr) test;
+			starter->p_s.pc_epc = starter->p_s.reg_t9 = ENTRY_POINT;
 
 			/* Entry point. */
 			assignProcess(starter);

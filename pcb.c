@@ -68,6 +68,7 @@ void freePcb(pcb_t *p) {
 /* Estrae il pcb in testa alla coda della pcbFree, inizializzandone i campi. Se tale coda è vuota, viene restituito NULL*/
 pcb_t* allocPcb() {
 
+	int i;
 	struct pcb_t * elem;
 
 	if (list_empty(&pcbFree_h))
@@ -90,7 +91,8 @@ pcb_t* allocPcb() {
 		elem -> p_s.cause = 0;
 		elem -> p_s.status = 0;
 		elem -> p_s.pc_epc = 0;
-		elem -> p_s.gpr[29] = 0;
+		for (i = 0; i < 29; i++)
+			elem -> p_s.gpr[i] = 0;
 		elem -> p_s.hi = 0;
 		elem -> p_s.lo = 0;
 		elem -> priority = 0;

@@ -31,7 +31,7 @@ state_t new_old_areas[MAX_CPU][8];
  *  */
 void populateArea(state_t* area, memaddr handlerAddr, int offset) {
 
-	area->status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
+	area->status = (area->status & ~(STATUS_IEc | STATUS_KUc | STATUS_VMc)) | STATUS_TE;
 	area->reg_sp = RAMTOP + (FRAME_SIZE*offset);
 	area->pc_epc = area->reg_t9 = handlerAddr;
 
@@ -39,12 +39,12 @@ void populateArea(state_t* area, memaddr handlerAddr, int offset) {
 
 void test2() {
 
-	int i;
+	int i = 0;
 
-	for (i = 0; i < 6; i++)
-		addokbuf("2 ");
+	while (i++ < 100000)
+		;
 
-	addokbuf("Test2 End ");
+	addokbuf("Test2 ended");
 
 }
 
@@ -55,7 +55,7 @@ void test() {
 	while (i++ < 100000)
 		;
 
-	/*
+/*
 	pcb_t *starter2 = allocPcb();
 
 	STST(&starter2->p_s);
@@ -65,7 +65,7 @@ void test() {
 
 	assignProcess(starter2); */
 
-	addokbuf("Test End ");
+	addokbuf("Test ended");
 
 }
 
@@ -79,7 +79,7 @@ int main() {
 	populateArea((state_t *)PGMTRAP_NEWAREA,(memaddr)trapHandler,0);
 	populateArea((state_t *)SYSBK_NEWAREA,(memaddr)sysHandler,0);
 
-	/* Setting up CPUn (with n >= 1) new areas in RAM, in a defined array of state_t pointers. */
+	/* Setting up CPU-n (with n >= 1) new areas in RAM, in a defined array of state_t pointers. */
 	for (i = 1; i < NUM_CPU; i++)
 		for (j = 0; j < 4; j++)
 
