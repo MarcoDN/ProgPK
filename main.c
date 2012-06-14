@@ -65,7 +65,7 @@ void test() {
 
 	assignProcess(starter2); */
 
-	addokbuf("Test ended");
+	//addokbuf("Test ended");
 
 }
 

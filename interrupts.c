@@ -22,22 +22,22 @@
 #include "utilTest.h"
 #include "copy.h"
 
-//extern state_t new_old_areas[16][8];
+extern state_t new_old_areas[16][8];
 
 //extern pcb_t *locksemaphore;
 void intHandler() {
 
 	int cpu = getPRID(),cause = getCAUSE();
 
-	copyState(((state_t*)PGMTRAP_OLDAREA),(&running[cpu]->p_s));
-	running[cpu]->p_s.pc_epc += WORD_SIZE;
+	if (cpu > 0)
+		copyState((&new_old_areas[cpu][1]),(&running[cpu]->p_s));
+	else
+		copyState(((state_t*)INT_OLDAREA),(&running[cpu]->p_s));
 
 	insertProcQ(&readyQ[cpu],running[cpu]);
-	running[cpu] = NULL;
 
-	if(CAUSE_IP_GET(cause,INT_TIMER)){
+	if (CAUSE_IP_GET(cause,INT_TIMER)) {
 
-		LDST(&scheduler);
 		/*eseguo v su system call*/
 
 
@@ -45,9 +45,10 @@ void intHandler() {
 		 * &currentThread->t_state)
 		 * else chiamo la sys8*/
 
-	}else if(CAUSE_IP_GET(cause,INT_TERMINAL)){/*terminal interrupt*/
+	}
+	else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /*terminal interrupt*/
 		/*set inteval timer*/
-		SET_IT(5000);
+
 		/*eseguo v su system call*/
 		/*if(check_V()){//return state device on process v0
 			currentThread->t_state.reg_v0=(state_t *)INT_OLDAREA->reg_v0;
@@ -64,6 +65,8 @@ void intHandler() {
 		/*metterlo in attesa con funzione di marco*/
 		//}
 	}
+
+	LDST(&scheduler);
 
 	/* if v non sblocca salvo stato dispositivo
 	 * else chiamo la sys8*/

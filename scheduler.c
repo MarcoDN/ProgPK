@@ -52,7 +52,7 @@ void schedule() {
 		process_counter_Lock = 0;
 
 		/* Sets the Interval Timer delay with the given timeslice, for RR purpose. */
-		//SET_IT(TIMESLICE);
+		SET_IT(TIMESLICE);
 
 		LDST(&running[i]->p_s);
 
@@ -115,7 +115,7 @@ void assignProcess(pcb_t* p) {
 		if (prid > 0)
 			INITCPU(prid,&scheduler,new_old_areas[prid]);
 		else
-			LDST(&scheduler);
+			INITCPU(prid,&scheduler,CPU0_NEW_OLD_AREAS);
 
 }
 

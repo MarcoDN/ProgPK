@@ -10,11 +10,11 @@
 #include "const11.h"
 #include "copy.h"
 #include "libumps.h"
-#include "scheduler.h"
 #include "pcb.e"
 #include "sysvars.h"
 #include "types11.h"
 #include "uMPStypes.h"
+#include "scheduler.h"
 
 #define FREE 1
 #define BUSY 0
@@ -43,7 +43,7 @@ void sysHandler() {
 		//CREATEPROCESS
 		case 1: {
 
-			state_t* son_state = running[cpu]->p_s.reg_a1; //indirizzo dello state_t dato del processo figlio
+			state_t* son_state = (state_t*) running[cpu]->p_s.reg_a1; //indirizzo dello state_t dato del processo figlio
 
 			//CAS
 			pcb_t* son = allocPcb(); //estraggo nuovo pcb per il processo figlio
