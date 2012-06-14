@@ -32,7 +32,7 @@ state_t new_old_areas[MAX_CPU][8];
 void populateArea(state_t* area, memaddr handlerAddr, int offset) {
 
 	area->status = (area->status & ~(STATUS_IEc | STATUS_KUc | STATUS_VMc)) | STATUS_TE;
-	area->reg_sp = RAMTOP + (FRAME_SIZE*offset);
+	area->reg_sp = RAMTOP - (FRAME_SIZE*offset);
 	area->pc_epc = area->reg_t9 = handlerAddr;
 
 }
@@ -55,7 +55,7 @@ void test() {
 	while (i++ < 100000)
 		;
 
-/*
+	/*
 	pcb_t *starter2 = allocPcb();
 
 	STST(&starter2->p_s);
@@ -85,10 +85,10 @@ int main() {
 
 			switch (j) {
 
-			case 0: populateArea(&new_old_areas[i][0],(memaddr)intHandler,i); break;
-			case 1: populateArea(&new_old_areas[i][2],(memaddr)tlbHandler,i); break;
-			case 2: populateArea(&new_old_areas[i][4],(memaddr)trapHandler,i); break;
-			case 3: populateArea(&new_old_areas[i][6],(memaddr)sysHandler,i); break;
+			case 0: populateArea(&new_old_areas[i][1],(memaddr)intHandler,i); break;
+			case 1: populateArea(&new_old_areas[i][3],(memaddr)tlbHandler,i); break;
+			case 2: populateArea(&new_old_areas[i][5],(memaddr)trapHandler,i); break;
+			case 3: populateArea(&new_old_areas[i][7],(memaddr)sysHandler,i); break;
 
 			}
 
