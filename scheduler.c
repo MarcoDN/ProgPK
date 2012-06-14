@@ -22,7 +22,7 @@ unsigned int process_counter = 0;
 unsigned int soft_block_counter = 0;
 
 /* Multiple Queues. One for each processor */
-struct list_head readyQ[MAX_CPU];
+PCB_Queue readyQ[MAX_CPU];
 /* Active process on each CPU. */
 pcb_t *running[MAX_CPU];
 /* Counter of processes assigned to each CPU, for load balancing. */
@@ -38,8 +38,7 @@ void schedule() {
 
 	int i = getPRID();
 
-	if ( running[i] != NULL ||
-			((running[i] = removeProcQ(&readyQ[i])) != NULL) ) {
+	if ((running[i] = removeProcQ(&readyQ[i])) != NULL) {
 
 		if (--running[i]->priority < 0)
 			running[i]->priority = 0;
@@ -142,7 +141,7 @@ void initScheduler(int offset) {
 
 			/* TESTING
 			starter->p_s.status &= ~(STATUS_IEc | STATUS_KUc | STATUS_VMc);
-			*/
+			 */
 			starter->p_s.status |= STATUS_IEp | STATUS_INT_UNMASKED;
 			starter->p_s.reg_sp = RAMTOP - (FRAME_SIZE * (offset+1));
 			starter->p_s.pc_epc = starter->p_s.reg_t9 = ENTRY_POINT;

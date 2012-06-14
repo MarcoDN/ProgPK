@@ -12,6 +12,7 @@
 
 #include "libumps.h"
 #include "types11.h"
+#include "sysvars.h"
 
 #include "scheduler.h"
 #include "traps.h"
@@ -26,20 +27,17 @@
 //extern pcb_t *locksemaphore;
 void intHandler() {
 
-	int cpu = getPRID();
-/*
+	int cpu = getPRID(),cause = getCAUSE();
+
+	copyState(((state_t*)PGMTRAP_OLDAREA),(&running[cpu]->p_s));
 	running[cpu]->p_s.pc_epc += WORD_SIZE;
+
+	insertProcQ(&readyQ[cpu],running[cpu]);
 	running[cpu] = NULL;
 
-	if (cpu==0)
-		LDST(&scheduler);
-	else
-		INITCPU(cpu,&scheduler,new_old_areas[cpu]); */
-
-	int cause = getCAUSE();
 	if(CAUSE_IP_GET(cause,INT_TIMER)){
-		/*set interval timer*/
-		SET_IT(5000);
+
+		LDST(&scheduler);
 		/*eseguo v su system call*/
 
 

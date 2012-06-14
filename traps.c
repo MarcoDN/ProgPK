@@ -6,10 +6,10 @@
  */
 
 #include "types11.h"
-#include "scheduler.h"
 
 #include "copy.h"
 #include "sysvars.h"
+#include "scheduler.h"
 
 extern state_t new_old_areas[MAX_CPU][8];
 

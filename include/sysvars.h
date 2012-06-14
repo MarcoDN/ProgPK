@@ -28,4 +28,7 @@
 /* Entry point function's name. */
 #define ENTRY_POINT (memaddr) test
 
+/* Typedefinition for queues of pcb. */
+typedef struct list_head PCB_Queue;
+
 #endif /* SYSVARS_H_ */

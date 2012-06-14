@@ -12,13 +12,13 @@
 
 #include "libumps.h"
 #include "types11.h"
+#include "sysvars.h"
 
 #include "scheduler.h"
 #include "traps.h"
 #include "syscalls.h"
 #include "interrupts.h"
 
-#include "sysvars.h"
 #include "utilTest.h"
 
 /* We need to create a matrix in RAM to populate the other new areas for CPU

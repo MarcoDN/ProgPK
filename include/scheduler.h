@@ -10,7 +10,7 @@
 
 extern unsigned int process_counter;
 extern unsigned int soft_block_counter;
-extern struct list_head readyQ[];
+extern PCB_Queue readyQ[];
 extern pcb_t *running[];
 extern int numProc[];
 extern state_t scheduler;
