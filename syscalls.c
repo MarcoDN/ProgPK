@@ -4,15 +4,17 @@
  *  Created on: 12/giu/2012
  *      Author: kira
  */
-#include "libumps.h"
-#include "types11.h"
 #include "asl.e"
-#include "pcb.e"
-
-#include "sysvars.h"
-#include "scheduler.h"
-
+#include "base.h"
+#include "const.h"
+#include "const11.h"
 #include "copy.h"
+#include "libumps.h"
+#include "scheduler.h"
+#include "pcb.e"
+#include "sysvars.h"
+#include "types11.h"
+#include "uMPStypes.h"
 
 #define FREE 1
 #define BUSY 0
@@ -27,38 +29,32 @@ unsigned int sem_esclusion[MAXPROC]; //tutti inizializzati e free
 void sysHandler() {
 
 	int cpu = getPRID(),cause = getCAUSE();
-
-	//le system calls differiscono dal contenuto dei breakpoints a seconda del valore della
-	//parte di registro cause detta ExcCode. Quindi ci sono due punti possibili: o è una system call,
-	//oppure un break point
-
-	/* Con STST ottengo lo state_t del processo che ha scatenato la sys call e devo leggerne i registri cause,
-	a0 (numero syscall), a1 a2 e a3 per i parametri. A seconda di quanto trovato nel registro a0, faccio
-	lo switch del numero della sys call.*/
+	copyState(((state_t*)SYSBK_OLDAREA),(&running[cpu]->p_s));
 
 	//se è una system call, quindi EXC_CODE == 8
 	if ((CAUSE_EXCCODE_GET(cause)) == EXC_SYSCALL) {
 
-		state_t actual;
-		STST(&actual); //estraggo lo stato del processo chiamante
+		//prendo lo state del padre prima della chiamata
+		//devo leggere nei registri dello state_t del padre per estrarre i vari valori del figlio
 
-		switch (actual.reg_a0) {
+
+		switch (running[cpu]->p_s.reg_a0) {
 
 		//CREATEPROCESS
 		case 1: {
 
-			state_t* son_state = &actual; //indirizzo dello state_t dato del processo figlio
+			state_t* son_state = running[cpu]->p_s.reg_a1; //indirizzo dello state_t dato del processo figlio
 
 			//CAS
 			pcb_t* son = allocPcb(); //estraggo nuovo pcb per il processo figlio
 
 			//non posso più creare processi, ho finito tutti i pcb disponibili
 			if (son == NULL) {
-				actual.reg_v0 = -1;
+				running[cpu]->p_s.reg_v0 = -1;
 				return;
 			}
 
-			son->priority = actual.reg_a2; //priorità del processo figlio
+			son->priority = running[cpu]->p_s.reg_a2; //priorità del processo figlio
 			// copio nel struttura state_t del pc, tutti i campi dello state_t del processo figlio che ci viene dato
 			son->p_s.pc_epc = son_state ->pc_epc;
 			son->p_s.entry_hi = son_state ->entry_hi;
@@ -70,21 +66,30 @@ void sysHandler() {
 			for(i = 0; i < 29; i++) {
 				son->p_s.gpr[i] = son_state->gpr[i];
 			}
-			//adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?
 
+			//adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?
+			//inserico il nuovo processo in una coda ready
 			insertChild(running[cpu], son);
-			//adesso da qui devo inserire il pcb appena creato in una coda ready dei processori.
-			//le esaminiamo tutte e scegliamo di inserirlo nella coda a lunghezza più corta
+			assignProcess(son);
+
+			//rimetto anche il pcb del padre nella coda ready
+			//incremento il suo program counter
+			//e gli restituisco il valore
+			running[cpu]->p_s.pc_epc += WORD_SIZE;
+			running[cpu]->p_s.reg_v0 = 0;
+			assignProcess(running[cpu]);
+
 
 			//CAS
 			/* process_counter++ */
-			actual.reg_v0 = 0; }
+
+			 }
 		break;
 
 		//PASSEREN
 		case 5:	{
 
-			int key = actual.reg_a1; //ottengo la key del semaforo
+			int key = running[cpu]->p_s.reg_a1; //ottengo la key del semaforo
 			semd_t* sem = getSemd(key);
 
 			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
@@ -112,7 +117,7 @@ void sysHandler() {
 
 		//VERHOGEN
 		case 4: {
-			int key = actual.reg_a1; //ottengo la key del semaforo
+			int key = running[cpu]->p_s.reg_a1; //ottengo la key del semaforo
 			semd_t* sem = getSemd(key); //ottengo puntatore al semaforo di quella key
 
 			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ;
@@ -121,7 +126,7 @@ void sysHandler() {
 			//se il semaforo ha dei processi bloccati in coda
 			if(!(emptyProcQ(&sem->s_procQ))) {
 				pcb_t* wake_pcb = removeBlocked(key);
-				//inserisci pcb in una ready queue, quella di lunghezza minore
+				assignProcess(wake_pcb);
 			}
 			else {/*togliere il semaforo dalla ASL*/}
 			CAS(&sem_esclusion[key], BUSY, FREE);
