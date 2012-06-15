@@ -65,10 +65,25 @@ void schedule() {
 
 }
 
+/* Restart the scheduler. Loading the proper state. */
+void restartScheduler() {
+
+	LDST(&scheduler);
+
+}
+
 /* Enqueue the process into its previously assigned CPU's Ready Queue. */
 void enqueueProcess(pcb_t* p, int prid) {
 
 	insertProcQ(&readyQ[prid],p);
+
+}
+
+/* Returns a pointer to the process currently executed by the CPU with given prid. */
+pcb_t* getRunningProcess(int prid) {
+
+	return running[prid];
+
 }
 
 /* Returns the PRID of the processor with less processes assigned. */

@@ -10,10 +10,10 @@
 
 extern unsigned int process_counter;
 extern unsigned int soft_block_counter;
-extern pcb_t *running[];
 extern int numProc[];
-extern state_t scheduler;
 
+pcb_t* getRunningProcess(int prid);
+void restartScheduler();
 extern void initScheduler(int offset);
 extern void assignProcess(pcb_t *p);
 extern void enqueueProcess(pcb_t* p, int prid);

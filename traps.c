@@ -16,14 +16,14 @@ extern state_t new_old_areas[MAX_CPU][8];
 void trapHandler() {
 
 	int cpu = getPRID();
+	pcb_t *current = getRunningProcess(cpu);
 
-	copyState(((state_t*)PGMTRAP_OLDAREA),(&running[cpu]->p_s));
-	running[cpu]->p_s.pc_epc += WORD_SIZE;
+	copyState(((state_t*)PGMTRAP_OLDAREA),(&current->p_s));
+	current->p_s.pc_epc += WORD_SIZE;
 
-	enqueueProcess(running[cpu],cpu);
+	enqueueProcess(current,cpu);
 
-	LDST(&scheduler);
-
+	restartScheduler();
 
 }
 
