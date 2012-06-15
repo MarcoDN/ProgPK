@@ -30,7 +30,7 @@ void sysHandler() {
 
 	int cpu = getPRID(),cause = getCAUSE();
 	pcb_t* current = getRunningProcess(cpu);
-	copyState(((state_t*)SYSBK_OLDAREA),(current->p_s));
+	copyState(((state_t *)SYSBK_OLDAREA),(&current->p_s));
 	current->p_s.pc_epc += WORD_SIZE; //incremento il chiamante della syscall di un'istruzione
 
 	//se è una system call, quindi EXC_CODE == 8
@@ -78,7 +78,7 @@ void sysHandler() {
 			//e gli restituisco il valore
 
 			current->p_s.reg_v0 = 0;
-			enqueueProcess(current);
+			enqueueProcess(current, cpu);
 			restartScheduler();
 
 
@@ -123,7 +123,7 @@ void sysHandler() {
 			assignProcess(brother);
 
 			current->p_s.reg_v0 = 0;
-			enqueueProcess(current);
+			enqueueProcess(current, cpu);
 			restartScheduler();
 
 		} break;
@@ -132,7 +132,7 @@ void sysHandler() {
 		//PASSEREN
 		case 5:	{
 
-			int key = running[cpu]->p_s.reg_a1; //ottengo la key del semaforo
+			int key = current->p_s.reg_a1; //ottengo la key del semaforo
 			semd_t* sem = getSemd(key);
 
 			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
@@ -141,7 +141,7 @@ void sysHandler() {
 
 				//se il semaforo ha valore 0 o minore, il processo si blocca
 				//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
-				pcb_t *caller = running[cpu];
+				pcb_t *caller = current;
 				caller->p_semkey = key;
 				insertBlocked(key, caller);
 				//devo inserire adesso questo semaforo nella asl
@@ -159,7 +159,7 @@ void sysHandler() {
 
 		//VERHOGEN
 		case 4: {
-			int key = running[cpu]->p_s.reg_a1; //ottengo la key del semaforo
+			int key = current->p_s.reg_a1; //ottengo la key del semaforo
 			semd_t* sem = getSemd(key); //ottengo puntatore al semaforo di quella key
 
 			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ;
@@ -168,7 +168,7 @@ void sysHandler() {
 			//se il semaforo ha dei processi bloccati in coda
 			if(!(emptyProcQ(&sem->s_procQ))) {
 				pcb_t* wake_pcb = removeBlocked(key);
-				enqueueProcess(wake_pcb);
+				enqueueProcess(wake_pcb, cpu);
 			}
 			else {/*togliere il semaforo dalla ASL*/}
 			CAS(&sem_esclusion[key], BUSY, FREE);
@@ -181,8 +181,8 @@ void sysHandler() {
 	/* Ramo else: Breakpoint. Dovrebbe essere l'unica alternativa. */
 	else if ((CAUSE_EXCCODE_GET(cause)) == EXC_BREAKPOINT) {
 
-		copyState(((state_t*)SYSBK_OLDAREA),(&running[cpu]->p_s));
-		running[cpu]->p_s.pc_epc += WORD_SIZE;
+		copyState(((state_t*)SYSBK_OLDAREA),(&current->p_s));
+		current->p_s.pc_epc += WORD_SIZE;
 
 		if (cpu==0)
 			LDST(&scheduler);
