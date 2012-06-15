@@ -129,31 +129,22 @@ void sysHandler() {
 		} break;
 
 
-		//PASSEREN
-		case 5:	{
-
-			int key = current->p_s.reg_a1; //ottengo la key del semaforo
-			semd_t* sem = getSemd(key);
-
-			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
-			sem->s_value = (sem->s_value)--;
-			if (sem->s_value <= 0) {
-
-				//se il semaforo ha valore 0 o minore, il processo si blocca
-				//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
-				pcb_t *caller = current;
-				caller->p_semkey = key;
-				insertBlocked(key, caller);
-				//devo inserire adesso questo semaforo nella asl
 
 
-			}
 
-			CAS(&sem_esclusion[key], BUSY, FREE);
+		//TERMINATEPROCESS
+		case 3: {
 
 		} break;
 
 
+		//PASSEREN
+		case 5:	{
+			int key = current->p_s.reg_a1; //ottengo la key del semaforo
+			semd_t* sem = getSemd(key);
+			P(sem, key, current);
+			restartScheduler();
+		} break;
 
 
 
@@ -161,17 +152,32 @@ void sysHandler() {
 		case 4: {
 			int key = current->p_s.reg_a1; //ottengo la key del semaforo
 			semd_t* sem = getSemd(key); //ottengo puntatore al semaforo di quella key
+			V(sem, key);
+			restartScheduler();
+		} break;
 
-			while(!CAS(&sem_esclusion[key], FREE, BUSY)) ;
-			sem->s_value = (sem->s_value)++;
 
-			//se il semaforo ha dei processi bloccati in coda
-			if(!(emptyProcQ(&sem->s_procQ))) {
-				pcb_t* wake_pcb = removeBlocked(key);
-				enqueueProcess(wake_pcb, cpu);
-			}
-			else {/*togliere il semaforo dalla ASL*/}
-			CAS(&sem_esclusion[key], BUSY, FREE);
+
+		//GETCPUTIME
+		case 6: {
+			unsigned int rest = getTIMER(); //controllo a quanto è arrivato il timer ora
+
+			//per capire quanti microsecondi ha usato il processo
+			//sottraggo il tempo rimasto dal timeslice totale
+			unsigned int used = TIMESLICE - rest;
+
+			current->p_s.reg_v0 = used;
+			restartScheduler();
+		} break;
+
+
+		//WAITCLOCK
+		case 7: {
+			//nel main abbiamo associato il semaforo di key 0 allo pseudo_clock_timer
+			//ed abbiamo chiamato il semaoforo psClock_timer
+			P(psClock_timer, 0, current);
+			//soft_block_counter++;
+			restartScheduler();
 		} break;
 
 
