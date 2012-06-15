@@ -100,7 +100,6 @@ void sysHandler() {
 				//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
 				pcb_t *caller = running[cpu];
 				caller->p_semkey = key;
-				outProcQ(&readyQ[cpu],caller);
 				insertBlocked(key, caller);
 				//devo inserire adesso questo semaforo nella asl
 

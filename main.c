@@ -54,8 +54,7 @@ void test() {
 
 	while (i++ < 100000)
 		;
-
-	/*
+/*
 	pcb_t *starter2 = allocPcb();
 
 	STST(&starter2->p_s);
@@ -63,7 +62,7 @@ void test() {
 	starter2->p_s.reg_sp = starter2->p_s.reg_sp - FRAME_SIZE;
 	starter2->p_s.pc_epc = starter2->p_s.reg_t9 = (memaddr) test2;
 
-	assignProcess(starter2); */
+	SYSCALL(1,(int) &starter2->p_s,1,0); */
 
 	//addokbuf("Test ended");
 

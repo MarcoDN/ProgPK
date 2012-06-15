@@ -20,10 +20,10 @@ void trapHandler() {
 	copyState(((state_t*)PGMTRAP_OLDAREA),(&running[cpu]->p_s));
 	running[cpu]->p_s.pc_epc += WORD_SIZE;
 
-	if (cpu==0)
-		LDST(&scheduler);
-	else
-		INITCPU(cpu,&scheduler,new_old_areas[cpu]);
+	enqueueProcess(running[cpu],cpu);
+
+	LDST(&scheduler);
+
 
 }
 

@@ -34,7 +34,7 @@ void intHandler() {
 	else
 		copyState(((state_t*)INT_OLDAREA),(&running[cpu]->p_s));
 
-	insertProcQ(&readyQ[cpu],running[cpu]);
+	enqueueProcess(running[cpu],cpu);
 
 	if (CAUSE_IP_GET(cause,INT_TIMER)) {
 

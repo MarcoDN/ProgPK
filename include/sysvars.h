@@ -19,8 +19,10 @@
 /* Initialize the correct number of CPUs the system will be using. */
 #define NUM_CPU *((memaddr*) NCPUs)
 
-/* Timeslice in microseconds. */
+/* Timeslice in microseconds. Used for scheduling. */
 #define TIMESLICE 5000
+/* Interval Timer's delay. Used for pseudo-clock accounting. */
+#define PSEUDO_CLOCK_INTERVAL 100000
 
 /* Highest priority processes can have. */
 #define MAX_PRIORITY 5

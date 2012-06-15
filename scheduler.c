@@ -40,8 +40,11 @@ void schedule() {
 
 	if ((running[i] = removeProcQ(&readyQ[i])) != NULL) {
 
+		/* Decrements the process's priority, since it's being scheduled for execution. */
 		if (--running[i]->priority < 0)
 			running[i]->priority = 0;
+		/* Enable the Process Local Timer interrupts for this process. */
+		running[i]->p_s.status |= STATUS_TE;
 
 		/* ENTER CS. */
 		while (!CAS(&process_counter_Lock,0,1)) ;
@@ -52,7 +55,7 @@ void schedule() {
 		process_counter_Lock = 0;
 
 		/* Sets the Interval Timer delay with the given timeslice, for RR purpose. */
-		SET_IT(TIMESLICE);
+		setTIMER(TIMESLICE);
 
 		LDST(&running[i]->p_s);
 
@@ -62,31 +65,11 @@ void schedule() {
 
 }
 
-/*
-void schedule2() {
+/* Enqueue the process into its previously assigned CPU's Ready Queue. */
+void enqueueProcess(pcb_t* p, int prid) {
 
-	int i,j;
-
-	for (i = NUM_CPU-1; i >= 0; i--) {
-
-		if ((running[i] = removeProcQ(&readyQ[i])) != NULL) {
-
-			if (--running[i]->priority < 0)
-				running[i]->priority = 0;
-
-			process_counter++;
-
-			SET_IT(TIMESLICE);
-
-			if (i > 0)
-				INITCPU(i,&running[i]->p_s,new_old_areas[i]);
-			else
-				LDST(&running[i]->p_s);
-		}
-
-	}
-
-} */
+	insertProcQ(&readyQ[prid],p);
+}
 
 /* Returns the PRID of the processor with less processes assigned. */
 int getShortestQ() {
@@ -102,9 +85,10 @@ int getShortestQ() {
 	return prid;
 }
 
-/* Assigns a process to a Processor, waking it up if needed. */
+/* Assigns a new process to a Processor, waking it up if needed. */
 void assignProcess(pcb_t* p) {
 
+	/* Uses a policy of load balancing. */
 	int prid = getShortestQ();
 
 	insertProcQ(&readyQ[prid],p);
@@ -145,6 +129,9 @@ void initScheduler(int offset) {
 			starter->p_s.status |= STATUS_IEp | STATUS_INT_UNMASKED;
 			starter->p_s.reg_sp = RAMTOP - (FRAME_SIZE * (offset+1));
 			starter->p_s.pc_epc = starter->p_s.reg_t9 = ENTRY_POINT;
+
+			/* Sets the global Interval Timer for an accounting of Pseudo-Clock ticks. */
+			SET_IT(PSEUDO_CLOCK_INTERVAL);
 
 			/* Entry point. */
 			assignProcess(starter);

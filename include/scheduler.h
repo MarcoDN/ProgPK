@@ -10,12 +10,12 @@
 
 extern unsigned int process_counter;
 extern unsigned int soft_block_counter;
-extern PCB_Queue readyQ[];
 extern pcb_t *running[];
 extern int numProc[];
 extern state_t scheduler;
 
 extern void initScheduler(int offset);
 extern void assignProcess(pcb_t *p);
+extern void enqueueProcess(pcb_t* p, int prid);
 
 #endif /* SCHEDULER_H_ */
