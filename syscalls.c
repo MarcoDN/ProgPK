@@ -4,17 +4,17 @@
  *  Created on: 12/giu/2012
  *      Author: kira
  */
-#include "asl.e"
-#include "base.h"
-#include "const.h"
-#include "const11.h"
-#include "copy.h"
-#include "libumps.h"
-#include "pcb.e"
-#include "sysvars.h"
-#include "types11.h"
-#include "uMPStypes.h"
-#include "scheduler.h"
+#include "include/asl.e"
+#include "include/base.h"
+#include "include/const.h"
+#include "include/const11.h"
+#include "include/copy.h"
+#include "include/libumps.h"
+#include "include/pcb.e"
+#include "include/sysvars.h"
+#include "include/types11.h"
+#include "include/uMPStypes.h"
+#include "include/scheduler.h"
 
 #define FREE 1
 #define BUSY 0
@@ -29,7 +29,9 @@ unsigned int sem_esclusion[MAXPROC]; //tutti inizializzati e free
 void sysHandler() {
 
 	int cpu = getPRID(),cause = getCAUSE();
-	copyState(((state_t*)SYSBK_OLDAREA),(&running[cpu]->p_s));
+	pcb_t* current = getRunningProcess(cpu);
+	copyState(((state_t*)SYSBK_OLDAREA),(current->p_s));
+	current->p_s.pc_epc += WORD_SIZE; //incremento il chiamante della syscall di un'istruzione
 
 	//se è una system call, quindi EXC_CODE == 8
 	if ((CAUSE_EXCCODE_GET(cause)) == EXC_SYSCALL) {
@@ -38,23 +40,23 @@ void sysHandler() {
 		//devo leggere nei registri dello state_t del padre per estrarre i vari valori del figlio
 
 
-		switch (running[cpu]->p_s.reg_a0) {
+		switch (current->p_s.reg_a0) {
 
 		//CREATEPROCESS
 		case 1: {
 
-			state_t* son_state = (state_t*) running[cpu]->p_s.reg_a1; //indirizzo dello state_t dato del processo figlio
+			state_t* son_state = (state_t*) current->p_s.reg_a1; //indirizzo dello state_t dato del processo figlio
 
 			//CAS
 			pcb_t* son = allocPcb(); //estraggo nuovo pcb per il processo figlio
 
 			//non posso più creare processi, ho finito tutti i pcb disponibili
 			if (son == NULL) {
-				running[cpu]->p_s.reg_v0 = -1;
+				current->p_s.reg_v0 = -1;
 				return;
 			}
 
-			son->priority = running[cpu]->p_s.reg_a2; //priorità del processo figlio
+			son->priority = current->p_s.reg_a2; //priorità del processo figlio
 			// copio nel struttura state_t del pc, tutti i campi dello state_t del processo figlio che ci viene dato
 			son->p_s.pc_epc = son_state ->pc_epc;
 			son->p_s.entry_hi = son_state ->entry_hi;
@@ -69,15 +71,15 @@ void sysHandler() {
 
 			//adesso inserisco tale nuovo pc formato come figlio del pcb padre chiamante. Ma come lo ottengo quest'ultimo?
 			//inserico il nuovo processo in una coda ready
-			insertChild(running[cpu], son);
+			insertChild(current, son);
 			assignProcess(son);
 
 			//rimetto anche il pcb del padre nella coda ready
-			//incremento il suo program counter
 			//e gli restituisco il valore
-			running[cpu]->p_s.pc_epc += WORD_SIZE;
-			running[cpu]->p_s.reg_v0 = 0;
-			assignProcess(running[cpu]);
+
+			current->p_s.reg_v0 = 0;
+			enqueueProcess(current);
+			restartScheduler();
 
 
 			//CAS
@@ -85,6 +87,47 @@ void sysHandler() {
 
 			 }
 		break;
+
+
+
+		//CREATEBROTHER
+		case 2: {
+			state_t* brother_state = (state_t*) current->p_s.reg_a1;
+
+			//CAS
+			pcb_t* brother = allocPcb(); //estraggo nuovo pcb per il processo fratello
+
+			//non posso più creare processi, ho finito tutti i pcb disponibili
+			if (brother == NULL) {
+				current->p_s.reg_v0 = -1;
+				return;
+			}
+
+			brother->priority = current->p_s.reg_a2; //priorità del processo figlio
+			// copio nel struttura state_t del pc, tutti i campi dello state_t del processo figlio che ci viene dato
+			brother->p_s.pc_epc = brother_state ->pc_epc;
+			brother->p_s.entry_hi = brother_state ->entry_hi;
+			brother->p_s.cause = brother_state -> cause;
+			brother->p_s.status = brother_state -> status;
+			brother->p_s.hi = brother_state -> hi;
+			brother->p_s.lo = brother_state -> lo;
+			int i;
+			for(i = 0; i < 29; i++) {
+				brother->p_s.gpr[i] = brother_state->gpr[i];
+			}
+
+			//adesso inserisco tale nuovo pc formato come figlio del padre del pcb chiamante.
+			//quindi come fratello del chiamante
+			//inserico il nuovo processo in una coda ready
+			insertChild(current->p_parent, brother);
+			assignProcess(brother);
+
+			current->p_s.reg_v0 = 0;
+			enqueueProcess(current);
+			restartScheduler();
+
+		} break;
+
 
 		//PASSEREN
 		case 5:	{
@@ -125,7 +168,7 @@ void sysHandler() {
 			//se il semaforo ha dei processi bloccati in coda
 			if(!(emptyProcQ(&sem->s_procQ))) {
 				pcb_t* wake_pcb = removeBlocked(key);
-				assignProcess(wake_pcb);
+				enqueueProcess(wake_pcb);
 			}
 			else {/*togliere il semaforo dalla ASL*/}
 			CAS(&sem_esclusion[key], BUSY, FREE);
