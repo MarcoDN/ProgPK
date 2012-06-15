@@ -19,10 +19,6 @@
 /* Initialize the correct number of CPUs the system will be using. */
 #define NUM_CPU *((memaddr*) NCPUs)
 
-/* Timeslice in microseconds. Used for scheduling. */
-#define TIMESLICE 5000
-/* Interval Timer's delay. Used for pseudo-clock accounting. */
-#define PSEUDO_CLOCK_INTERVAL 100000
 
 /* Highest priority processes can have. */
 #define MAX_PRIORITY 5
@@ -39,5 +35,9 @@ typedef struct list_head PCB_Queue;
 /* Variables for debugging/testing purpose. */
 U32 TEST;
 U32 TEST2;
+
+/* Utility definition. */
+#define FREE 1
+#define BUSY 0
 
 #endif /* SYSVARS_H_ */

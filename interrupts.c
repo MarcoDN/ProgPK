@@ -22,9 +22,11 @@
 #include "utilTest.h"
 #include "copy.h"
 
-#include <libumps.e>
-
 extern state_t new_old_areas[16][8];
+
+/* Devices's semaphores. */
+semd_t *terminalRead, *terminalWrite, *psClock_timer;
+
 /* Indirizzo base del device */
 HIDDEN memaddr device_baseaddr;
 /* Variabili per accedere ai campi status e command di device o terminali */
@@ -54,11 +56,11 @@ void intHandler() {
 	int cpu = getPRID(),cause = getCAUSE();
 	pcb_t* current = getRunningProcess(cpu);
 	if (cpu > 0)
-		copyState((&new_old_areas[cpu][1]),(&running[cpu]->p_s));
+		copyState((&new_old_areas[cpu][1]),(&current->p_s));
 	else
-		copyState(((state_t*)INT_OLDAREA),(&running[cpu]->p_s));
+		copyState(((state_t*)INT_OLDAREA),(&current->p_s));
 
-	enqueueProcess(running[cpu],cpu);
+	enqueueProcess(current,cpu);
 
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
 	if (CAUSE_IP_GET(int_cause, INT_TIMER)) {
@@ -106,19 +108,19 @@ void intHandler() {
 		if(transmStatByte == DEV_TTRS_S_CHARTRSM)
 		{
 			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
-			v = V(terminalWrite , 1 ,current)
+			//v = V(terminalWrite , 1 ,current)
 
 									/* ACK per il riconoscimento dell'interrupt pendente */
-									(*tCommand) = DEV_C_ACK;
+			//(*tCommand) = DEV_C_ACK;
 		}
 		/* Se è un carattere ricevuto */
 		else if(recvStatByte == DEV_TRCV_S_CHARRECV)
 		{
 			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
-			v = V(terminalWrite , 2 ,current)
+			//v = V(terminalWrite , 2 ,current);
 
 									/* ACK per il riconoscimento dell'interrupt pendente */
-									(*trans:cmd) = DEV_C_ACK;
+		//	(*trans:cmd) = DEV_C_ACK;
 		}
 	}
 

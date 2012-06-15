@@ -97,8 +97,6 @@ int main() {
 
 	/* Inizialization of device semaphores. TODO */
 
-	semd_t *terminalRead, *terminalWrite, *psClock_timer;
-
 	if ((psClock_timer = getSemd(0)) != NULL)
 		psClock_timer -> s_value = 0;
 

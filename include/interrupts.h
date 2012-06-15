@@ -8,6 +8,9 @@
 #ifndef INTERRUPTS_H_
 #define INTERRUPTS_H_
 
-void intHandler();
+extern semd_t *terminalRead;
+extern semd_t *terminalWrite;
+extern semd_t *psClock_timer;
+extern void intHandler();
 
 #endif /* INTERRUPTS_H_ */

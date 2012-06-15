@@ -55,7 +55,7 @@ void schedule() {
 		process_counter_Lock = 0;
 
 		/* Sets the Interval Timer delay with the given timeslice, for RR purpose. */
-		setTIMER(TIMESLICE);
+		setTIMER(SCHED_TIME_SLICE);
 
 		LDST(&running[i]->p_s);
 
@@ -146,7 +146,7 @@ void initScheduler(int offset) {
 			starter->p_s.pc_epc = starter->p_s.reg_t9 = ENTRY_POINT;
 
 			/* Sets the global Interval Timer for an accounting of Pseudo-Clock ticks. */
-			SET_IT(PSEUDO_CLOCK_INTERVAL);
+			SET_IT(SCHED_PSEUDO_CLOCK);
 
 			/* Entry point. */
 			assignProcess(starter);

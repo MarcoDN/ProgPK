@@ -4,20 +4,18 @@
  *  Created on: 12/giu/2012
  *      Author: kira
  */
-#include "include/asl.e"
-#include "include/base.h"
-#include "include/const.h"
-#include "include/const11.h"
-#include "include/copy.h"
-#include "include/libumps.h"
-#include "include/pcb.e"
-#include "include/sysvars.h"
-#include "include/types11.h"
-#include "include/uMPStypes.h"
-#include "include/scheduler.h"
-
-#define FREE 1
-#define BUSY 0
+#include "asl.e"
+#include "base.h"
+#include "const.h"
+#include "const11.h"
+#include "copy.h"
+#include "libumps.h"
+#include "pcb.e"
+#include "sysvars.h"
+#include "types11.h"
+#include "uMPStypes.h"
+#include "scheduler.h"
+#include "interrupts.h"
 
 extern state_t new_old_areas[MAX_CPU][8];
 
@@ -25,6 +23,40 @@ unsigned int sem_esclusion[MAXPROC]; //tutti inizializzati e free
 //le chiamate ai semafori, P e V, devono essere eseguite senza essere interrompibili ed in mutua esclusione.
 //quindi prima di iniziare un'operazione su semaforo, bisogna che nessun'altra cpu stia facendo quella operazione
 //su quel semaforo. Ho quindi una variabile globale per ogni semaforo, che mi indica se sia libero o occupato
+
+void P(semd_t *s, int key, pcb_t *caller) {
+	while(!CAS(&sem_esclusion[key], FREE, BUSY)) ; //aspetto fino a quando si è liberato il semaforo
+
+	s->s_value = (s->s_value)--;
+	if (s->s_value <= 0) {
+
+		//se il semaforo ha valore 0 o minore, il processo si blocca
+		//devo estrarlo dalla coda ready e metterlo in quella del seamforo;
+		caller->p_semkey = key;
+		insertBlocked(key, caller);
+		//devo inserire adesso questo semaforo nella asl
+	}
+
+	CAS(&sem_esclusion[key], BUSY, FREE);
+	return;
+
+}
+
+
+
+void V(semd_t *s, int key) {
+	while(!CAS(&sem_esclusion[key], FREE, BUSY)) ;
+	s->s_value = (s->s_value)++;
+	int cpu = getPRID();
+
+	//se il semaforo ha dei processi bloccati in coda
+	if(!(emptyProcQ(&s->s_procQ))) {
+		pcb_t* wake_pcb = removeBlocked(key);
+		enqueueProcess(wake_pcb, cpu);
+	}
+	else {/*togliere il semaforo dalla ASL*/}
+	CAS(&sem_esclusion[key], BUSY, FREE);
+}
 
 void sysHandler() {
 
@@ -164,7 +196,7 @@ void sysHandler() {
 
 			//per capire quanti microsecondi ha usato il processo
 			//sottraggo il tempo rimasto dal timeslice totale
-			unsigned int used = TIMESLICE - rest;
+			unsigned int used = SCHED_TIME_SLICE - rest;
 
 			current->p_s.reg_v0 = used;
 			restartScheduler();
@@ -190,10 +222,9 @@ void sysHandler() {
 		copyState(((state_t*)SYSBK_OLDAREA),(&current->p_s));
 		current->p_s.pc_epc += WORD_SIZE;
 
-		if (cpu==0)
-			LDST(&scheduler);
-		else
-			INITCPU(cpu,&scheduler,new_old_areas[cpu]);
+		enqueueProcess(current,cpu);
+
+		restartScheduler();
 
 	}
 	return;
