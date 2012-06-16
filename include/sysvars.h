@@ -19,7 +19,6 @@
 /* Initialize the correct number of CPUs the system will be using. */
 #define NUM_CPU *((memaddr*) NCPUs)
 
-
 /* Highest priority processes can have. */
 #define MAX_PRIORITY 5
 

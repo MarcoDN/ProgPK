@@ -8,9 +8,8 @@
 #ifndef SCHEDULER_H_
 #define SCHEDULER_H_
 
-extern unsigned int process_counter;
+extern unsigned int process_counter[MAX_CPU];
 extern unsigned int soft_block_counter;
-extern int numProc[];
 
 pcb_t* getRunningProcess(int prid);
 void restartScheduler();

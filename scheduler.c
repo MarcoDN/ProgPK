@@ -7,59 +7,78 @@
 
 #include "asl.e"
 #include "pcb.e"
-
 #include "libumps.h"
 #include "types11.h"
-
 #include "sysvars.h"
 #include "utilTest.h"
 
-/* Critical Sections Variables. */
-static int process_counter_Lock = 0;
-
-/* Variables describing number of running/waiting processes. */
-unsigned int process_counter = 0;
+/* Counter of processes assigned to each CPU, for load balancing and Deadlock Detection. */
+unsigned int process_counter[MAX_CPU];
+/* Global counter of processes waiting on I/O. */
 unsigned int soft_block_counter = 0;
 
+/* Critical Sections Variables. */
+HIDDEN int prid_Lock[MAX_CPU];
 /* Multiple Queues. One for each processor */
-PCB_Queue readyQ[MAX_CPU];
+HIDDEN PCB_Queue readyQ[MAX_CPU];
 /* Active process on each CPU. */
-pcb_t *running[MAX_CPU];
-/* Counter of processes assigned to each CPU, for load balancing. */
-int numProc[MAX_CPU];
+HIDDEN pcb_t *running[MAX_CPU];
+/* State representing the scheduler execution. */
+HIDDEN state_t scheduler;
 
-state_t scheduler;
-
+/* Extern variables, loaded from other modules. */
 extern state_t new_old_areas[MAX_CPU][8];
 extern void test();
+
+/* Enqueue the process into its previously assigned CPU's Ready Queue. */
+void enqueueProcess(pcb_t* p, int prid) {
+
+	/* ENTER CS. */
+	while (!CAS(&prid_Lock[prid],FREE,BUSY)) ;
+
+	insertProcQ(&readyQ[prid],p);
+
+	/* EXIT CS. */
+	prid_Lock[prid] = FREE;
+
+}
+
+/* Dequeue a process from the given CPU's Ready Queue. */
+pcb_t* dequeueProcess(int prid) {
+
+	/* ENTER CS. */
+	while (!CAS(&prid_Lock[prid],FREE,BUSY)) ;
+
+	pcb_t* result = removeProcQ(&readyQ[prid]);
+
+	/* EXIT CS. */
+	prid_Lock[prid] = FREE;
+
+	return result;
+
+}
 
 /* Main scheduling function. */
 void schedule() {
 
-	int i = getPRID();
+	int prid = getPRID();
 
-	if ((running[i] = removeProcQ(&readyQ[i])) != NULL) {
+	if ((running[prid] = dequeueProcess(prid)) != NULL) {
 
 		/* Decrements the process's priority, since it's being scheduled for execution. */
-		if (--running[i]->priority < 0)
-			running[i]->priority = 0;
+		if (--running[prid]->priority < 0)
+			running[prid]->priority = 0;
 		/* Enable the Process Local Timer interrupts for this process. */
-		running[i]->p_s.status |= STATUS_TE;
-
-		/* ENTER CS. */
-		while (!CAS(&process_counter_Lock,0,1)) ;
-
-		process_counter++;
-
-		/* EXIT CS. */
-		process_counter_Lock = 0;
+		running[prid]->p_s.status |= STATUS_TE;
 
 		/* Sets the Interval Timer delay with the given timeslice, for RR purpose. */
 		setTIMER(SCHED_TIME_SLICE);
 
-		LDST(&running[i]->p_s);
+		LDST(&running[prid]->p_s);
 
 	}
+	else if (process_counter[prid] > 0 && soft_block_counter == 0)  /* Performs some Deadlock Detection. */
+		PANIC();
 
 	WAIT();
 
@@ -69,13 +88,6 @@ void schedule() {
 void restartScheduler() {
 
 	LDST(&scheduler);
-
-}
-
-/* Enqueue the process into its previously assigned CPU's Ready Queue. */
-void enqueueProcess(pcb_t* p, int prid) {
-
-	insertProcQ(&readyQ[prid],p);
 
 }
 
@@ -92,8 +104,8 @@ int getShortestQ() {
 	int i,prid,min = MAXPROC; /* One processor can have at most MAXPROC processes. */
 
 	for (i = 0; i < NUM_CPU; i++)
-		if (numProc[i] < min) {
-			min = numProc[i];
+		if (process_counter[i] < min) {
+			min = process_counter[i];
 			prid = i;
 		}
 
@@ -106,11 +118,18 @@ void assignProcess(pcb_t* p) {
 	/* Uses a policy of load balancing. */
 	int prid = getShortestQ();
 
-	insertProcQ(&readyQ[prid],p);
+	enqueueProcess(p,prid);
 
-	numProc[prid]++;
+	/* ENTER CS. */
+	while (!CAS(&prid_Lock[prid],FREE,BUSY)) ;
 
-	if (numProc[prid] == 1)
+	/* Increments the choosen CPU's process counter. */
+	process_counter[prid]++;
+
+	/* EXIT CS. */
+	prid_Lock[prid] = FREE;
+
+	if (process_counter[prid] == 1)
 		if (prid > 0)
 			INITCPU(prid,&scheduler,new_old_areas[prid]);
 		else
@@ -131,7 +150,8 @@ void initScheduler(int offset) {
 
 		mkEmptyProcQ(&readyQ[i]);
 
-		numProc[i] = 0;
+		process_counter[i] = 0;
+		prid_Lock[i] = FREE;
 
 		if (i == 0) {
 
