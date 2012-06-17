@@ -52,7 +52,7 @@ void intHandler() {
 	int int_cause;
 	int *bitMapDevice;
 	int devNumb;
-
+	int pseudo_tick;
 	int cpu = getPRID(),cause = getCAUSE();
 	pcb_t* current = getRunningProcess(cpu);
 	if (cpu > 0)
@@ -62,17 +62,26 @@ void intHandler() {
 
 	enqueueProcess(current,cpu);
 
+	/* Se è presente un processo sulla CPU, salviamo il suo stato */
+		if(current != NULL)
+			copyState(((state_t*)INT_OLDAREA),(&current->p_s));
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
 	if (CAUSE_IP_GET(int_cause, INT_TIMER)) {
 
+		unsigned int start_pseudo_tick;
+
 		/* Aggiornamento pseudo clock */
-		/*	pseudo_tick = pseudo_tick + (GET_TODLOW - start_pseudo_tick);
+		//SCHED_PSEUDO_CLOCK
+		pseudo_tick = pseudo_tick + (GET_TODLOW - start_pseudo_tick);
+		unsigned int start_pseudo_tick;
 		start_pseudo_tick = GET_TODLOW;
 
-		assignProcess(&readyQ, current_Process);
+		int readyQ;
+		assignProcess(&readyQ, current);
 		getRunningProcess(cpu);
 	}
-	else{
+	else {
+		unsigned int PSEUDO_CLOCK_INTERVAL;
 
 		SET_IT(PSEUDO_CLOCK_INTERVAL - pseudo_tick)
 	/*eseguo v su system call*/
@@ -80,8 +89,8 @@ void intHandler() {
 
 		/* if v non sblocca salvo stato dispositivo
 		 * &currentThread->t_state)
-		 * else chiamo la sys8*/
 
+		 * else chiamo la sys8*/
 	}
 	else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /*terminal interrupt*/
 
