@@ -17,6 +17,20 @@
 #include "scheduler.h"
 #include "interrupts.h"
 
+/*
+ * semd_t terminalSem[8][2];
+ *
+ * int which_sem = 0;
+ * for(i=0;i<7;i++) {
+ * 	  int j=0;
+ * 	  terminalSem[i][j] = getSemd(which_sem);
+ * 	  j++;
+ * 	  which_sem++;
+ * 	  terminalSem[i][j] = getSemd(which_sem);
+ * 	  which_sem++;
+ * }
+ */
+
 extern state_t new_old_areas[MAX_CPU][8];
 
 unsigned int sem_esclusion[MAXPROC]; //tutti inizializzati e free
@@ -56,6 +70,10 @@ void V(semd_t *s, int key) {
 	}
 	else {/*togliere il semaforo dalla ASL*/}
 	CAS(&sem_esclusion[key], BUSY, FREE);
+}
+
+int passerenIO(semd_t *sem_dev) {
+
 }
 
 void sysHandler() {
@@ -112,10 +130,6 @@ void sysHandler() {
 			current->p_s.reg_v0 = 0;
 			enqueueProcess(current, cpu);
 			restartScheduler();
-
-
-			//CAS
-			/* process_counter++ */
 
 			 }
 		break;
@@ -210,6 +224,29 @@ void sysHandler() {
 			P(psClock_timer, 0, current);
 			//soft_block_counter++;
 			restartScheduler();
+		} break;
+
+
+
+		//WAITIO
+		case 8: {
+			//abbiamo una sola linea di device, i terminali che sono la 7.
+			//se invocate altrove, PANIC();
+			if(current->p_s.reg_a1 == 7) {
+
+				//se è in lettura
+				if(current->p_s.reg_a3) {
+					current->p_s.reg_v0 = passerenIO(terminalSem[current->p_s.reg_a2][1]);
+				}
+
+				else {
+					current->p_s.reg_v0 = passerenIO(terminalSem[current->p_s.reg_a2][0]);
+				}
+
+			}
+
+			else {PANIC();}
+
 		} break;
 
 
