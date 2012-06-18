@@ -35,6 +35,17 @@ void trapHandler() {
 	/*Recupero il codice del tipo di eccezione scatetanata*/
 	cause_exCode = CAUSE_EXCCODE_GET(sysbp_oldarea->cause);
 
+	/*Se il bit di lavoro è settato a 0 --> Kernel mode*/
+	if (KoUMode == 0){
+
+		/*Se il codice dell'eccezione è una siscall*/
+		if (cause_exCode == EXC_SYSCALL){
+
+			/*Avvio il gestore per la gestione delle syscall*/
+			
+		}
+	}
+
 	/*Carico il processo nella coda dei processi ready*/
 	enqueueProcess(current,cpu);
 
