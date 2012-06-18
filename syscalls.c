@@ -250,21 +250,28 @@ void sysHandler() {
 		} break;
 
 
+		/* Leggendo la guida Kaya sembrerebbe che vada caricato un nuovo gestore per quell'eccezzione
+		 * relativo ad un processo. Cioè per quel pcb. In modo che se da quel momento in avanti quel pcb scatena
+		 * un'eccezzione venga caricato il nuovo gestore e non quello standard. Tuttavia nella
+		 * struttura dati pcb_t non c'è nessun campo per inserire nuovi gestori (a differenza dell'anno scorso).
+		 * quindi bisogna sostituire i gestori originali proprio nelle new area delle cpu? */
+
 
 		//SPECPRGVEC
 		case 9: {
 
-			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
-			state_t* new_area = current->p_s.reg_a2;
 
+			state_t* new_area = current->p_s.reg_a2;
+			//salvo lo state_t attuale della cpu, gestore attuale
+			STST(current->p_s.reg_a1);
+
+			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle trap
 			if(cpu == 0) {
-				current->p_s.reg_a1 = PGMTRAP_NEWAREA;
 				(state_t *)PGMTRAP_NEWAREA = current->p_s.reg_a2;
 			}
 
 			//altrimenti lo prendo dalla matrice
 			else {
-				current->p_s.reg_a1 = new_old_areas[cpu][5];
 				new_old_areas[cpu][5] = *(current->p_s.reg_a2);
 			}
 
@@ -277,17 +284,17 @@ void sysHandler() {
 		//SPECTLBVEC
 		case 10: {
 
-			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
-			state_t* new_area = current->p_s.reg_a2;
 
+			state_t* new_area = current->p_s.reg_a2;
+			STST(current->p_s.reg_a1);
+
+			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle tlb
 			if(cpu == 0) {
-				current->p_s.reg_a1 = TLB_NEWAREA;
 				(state_t *)TLB_NEWAREA = current->p_s.reg_a2;
 			}
 
 			//altrimenti lo prendo dalla matrice
 			else {
-				current->p_s.reg_a1 = new_old_areas[cpu][3];
 				new_old_areas[cpu][3] = *(current->p_s.reg_a2);
 			}
 
@@ -299,12 +306,11 @@ void sysHandler() {
 
 		//SPECSYSVECT
 		case 11: {
-
-			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
+			STST(current->p_s.reg_a1);
 			state_t* new_area = current->p_s.reg_a2;
 
+			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
 			if(cpu == 0) {
-				current->p_s.reg_a1 = SYSBK_NEWAREA;
 				(state_t *)SYSBK_NEWAREA = current->p_s.reg_a2;
 			}
 
