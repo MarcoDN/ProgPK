@@ -29,7 +29,7 @@ void trapHandler() {
 	/*KoUMode = ((sysBp_old->status) & STATUS_KUp) >> 0x3;*/
 
 	/*Recupero il codice del tipo di eccezione scatetanata*/
-	cause_exCode = CAUSE_EXCCODE_GET(sysBp_old->cause);
+	/*cause_exCode = CAUSE_EXCCODE_GET(sysBp_old->cause);*/
 	
 	/*Carico il processo nella coda dei processi ready*/
 	enqueueProcess(current,cpu);
