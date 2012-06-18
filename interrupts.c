@@ -63,8 +63,8 @@ void intHandler() {
 	enqueueProcess(current,cpu);
 
 	/* Se è presente un processo sulla CPU, salviamo il suo stato */
-		if(current != NULL)
-			copyState(((state_t*)INT_OLDAREA),(&current->p_s));
+	if(current != NULL)
+		copyState(((state_t*)INT_OLDAREA),(&current->p_s));
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
 	if (CAUSE_IP_GET(int_cause, INT_TIMER)) {
 
@@ -80,19 +80,7 @@ void intHandler() {
 		assignProcess(&readyQ, current);
 		getRunningProcess(cpu);
 	}
-	else {
-		unsigned int PSEUDO_CLOCK_INTERVAL;
-
-		SET_IT(PSEUDO_CLOCK_INTERVAL - pseudo_tick)
-	/*eseguo v su system call*/
-
-
-		/* if v non sblocca salvo stato dispositivo
-		 * &currentThread->t_state)
-
-		 * else chiamo la sys8*/
-	}
-	else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /*terminal interrupt*/
+	else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
 
 		/* Cerco la bitmap della linea attuale */
 		bitMapDevice =(int *) (PENDING_BITMAP_START + (WORD_SIZE * (INT_TERMINAL - INT_LOWEST)));
@@ -100,7 +88,6 @@ void intHandler() {
 		devNumb = recognizeDev(*bitMapDevice);
 		/* Salvo indirizzo del Device Register */
 		device_baseaddr = (memaddr)(DEV_REGS_START + ((INT_TERMINAL - INT_LOWEST) * 0x80) + (devNumb * 0x10));
-
 
 		/* Recupera il campo status del device (ricezione) */
 		read_s    = (int *) (device_baseaddr + 0x0);
@@ -119,7 +106,7 @@ void intHandler() {
 			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
 			//v = V(terminalWrite , 1 ,current)
 
-									/* ACK per il riconoscimento dell'interrupt pendente */
+			/* ACK per il riconoscimento dell'interrupt pendente */
 			//(*tCommand) = DEV_C_ACK;
 		}
 		/* Se è un carattere ricevuto */
@@ -128,9 +115,21 @@ void intHandler() {
 			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
 			//v = V(terminalWrite , 2 ,current);
 
-									/* ACK per il riconoscimento dell'interrupt pendente */
-		//	(*trans:cmd) = DEV_C_ACK;
+			/* ACK per il riconoscimento dell'interrupt pendente */
+			//	(*trans:cmd) = DEV_C_ACK;
 		}
+	}
+	else {
+		unsigned int PSEUDO_CLOCK_INTERVAL;
+
+		SET_IT(PSEUDO_CLOCK_INTERVAL - pseudo_tick);
+		/*eseguo v su system call*/
+
+
+		/* if v non sblocca salvo stato dispositivo
+		 * &currentThread->t_state)
+
+		 * else chiamo la sys8*/
 	}
 
 	restartScheduler();
