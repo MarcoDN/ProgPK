@@ -17,19 +17,6 @@
 #include "scheduler.h"
 #include "interrupts.h"
 
-/*
- * semd_t terminalSem[8][2];
- *
- * int which_sem = 0;
- * for(i=0;i<7;i++) {
- * 	  int j=0;
- * 	  terminalSem[i][j] = getSemd(which_sem);
- * 	  j++;
- * 	  which_sem++;
- * 	  terminalSem[i][j] = getSemd(which_sem);
- * 	  which_sem++;
- * }
- */
 
 extern state_t new_old_areas[MAX_CPU][8];
 
@@ -230,6 +217,7 @@ void sysHandler() {
 
 		//WAITIO
 		case 8: {
+/*
 			//abbiamo una sola linea di device, i terminali che sono la 7.
 			//se invocate altrove, PANIC();
 			if(current->p_s.reg_a1 == 7) {
@@ -245,7 +233,7 @@ void sysHandler() {
 
 			}
 
-			else {PANIC();}
+			else {PANIC();}*/
 
 		} break;
 
@@ -261,21 +249,6 @@ void sysHandler() {
 		case 9: {
 
 
-			state_t* new_area = current->p_s.reg_a2;
-			//salvo lo state_t attuale della cpu, gestore attuale
-			STST(current->p_s.reg_a1);
-
-			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle trap
-			if(cpu == 0) {
-				(state_t *)PGMTRAP_NEWAREA = current->p_s.reg_a2;
-			}
-
-			//altrimenti lo prendo dalla matrice
-			else {
-				new_old_areas[cpu][5] = *(current->p_s.reg_a2);
-			}
-
-
 		} break;
 
 
@@ -285,20 +258,6 @@ void sysHandler() {
 		case 10: {
 
 
-			state_t* new_area = current->p_s.reg_a2;
-			STST(current->p_s.reg_a1);
-
-			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle tlb
-			if(cpu == 0) {
-				(state_t *)TLB_NEWAREA = current->p_s.reg_a2;
-			}
-
-			//altrimenti lo prendo dalla matrice
-			else {
-				new_old_areas[cpu][3] = *(current->p_s.reg_a2);
-			}
-
-
 		} break;
 
 
@@ -306,20 +265,7 @@ void sysHandler() {
 
 		//SPECSYSVECT
 		case 11: {
-			STST(current->p_s.reg_a1);
-			state_t* new_area = current->p_s.reg_a2;
-
-			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
-			if(cpu == 0) {
-				(state_t *)SYSBK_NEWAREA = current->p_s.reg_a2;
-			}
-
-			//altrimenti lo prendo dalla matrice
-			else {
-				current->p_s.reg_a1 = new_old_areas[cpu][7];
-				new_old_areas[cpu][7] = *(current->p_s.reg_a2);
-			}
-
+		
 
 		} break;
 
