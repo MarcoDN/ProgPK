@@ -251,6 +251,75 @@ void sysHandler() {
 
 
 
+		//SPECPRGVEC
+		case 9: {
+
+			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
+			state_t* new_area = current->p_s.reg_a2;
+
+			if(cpu == 0) {
+				current->p_s.reg_a1 = PGMTRAP_NEWAREA;
+				(state_t *)PGMTRAP_NEWAREA = current->p_s.reg_a2;
+			}
+
+			//altrimenti lo prendo dalla matrice
+			else {
+				current->p_s.reg_a1 = new_old_areas[cpu][5];
+				new_old_areas[cpu][5] = *(current->p_s.reg_a2);
+			}
+
+
+		} break;
+
+
+
+
+		//SPECTLBVEC
+		case 10: {
+
+			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
+			state_t* new_area = current->p_s.reg_a2;
+
+			if(cpu == 0) {
+				current->p_s.reg_a1 = TLB_NEWAREA;
+				(state_t *)TLB_NEWAREA = current->p_s.reg_a2;
+			}
+
+			//altrimenti lo prendo dalla matrice
+			else {
+				current->p_s.reg_a1 = new_old_areas[cpu][3];
+				new_old_areas[cpu][3] = *(current->p_s.reg_a2);
+			}
+
+
+		} break;
+
+
+
+
+		//SPECSYSVECT
+		case 11: {
+
+			//se il processore è 0, prendo l'indirizzo dell'attuale area di gestione delle sys/bk
+			state_t* new_area = current->p_s.reg_a2;
+
+			if(cpu == 0) {
+				current->p_s.reg_a1 = SYSBK_NEWAREA;
+				(state_t *)SYSBK_NEWAREA = current->p_s.reg_a2;
+			}
+
+			//altrimenti lo prendo dalla matrice
+			else {
+				current->p_s.reg_a1 = new_old_areas[cpu][7];
+				new_old_areas[cpu][7] = *(current->p_s.reg_a2);
+			}
+
+
+		} break;
+
+
+
+
 		} //fine switch
 	} //fine if((CAUSE_EXCCODE_GET(cause)) == EXC_SYSCALL)
 	/* Ramo else: Breakpoint. Dovrebbe essere l'unica alternativa. */
