@@ -6,10 +6,15 @@
  */
 
 #include "types11.h"
-
+#include "const.h"
 #include "copy.h"
 #include "sysvars.h"
 #include "scheduler.h"
+
+/*Macro per accesso alla OldArea come stato del processore*/
+#define progtrap_oldarea	((state_t *) PGMTRAP_OLDAREA)
+#define sysbp_oldarea  		((state_t *) SYSBK_OLDAREA)
+#define tbltrap_oldarea		((state_t *) TBL_OLDAREA)
 
 extern state_t new_old_areas[MAX_CPU][8];
 
@@ -24,13 +29,12 @@ void trapHandler() {
 	copyState(((state_t*)PGMTRAP_OLDAREA),(&current->p_s));
 	current->p_s.pc_epc += WORD_SIZE;
 
-	/*TODO: chiedo il controllo su questa cosa perchè non sono propriamente sicura che sia la giusta area di memoria a cui puntare.*/
 	/*Recupero il bit di modalità della sysBp Old Area (controllo se Kernel o User mode)*/
-	/*KoUMode = ((sysBp_old->status) & STATUS_KUp) >> 0x3;*/
+	KoUMode = ((sysbp_oldarea->status) & STATUS_KUp) >> 3;
 
 	/*Recupero il codice del tipo di eccezione scatetanata*/
-	/*cause_exCode = CAUSE_EXCCODE_GET(sysBp_old->cause);*/
-	
+	cause_exCode = CAUSE_EXCCODE_GET(sysbp_oldarea->cause);
+
 	/*Carico il processo nella coda dei processi ready*/
 	enqueueProcess(current,cpu);
 
