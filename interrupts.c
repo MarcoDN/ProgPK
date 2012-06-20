@@ -25,10 +25,11 @@
 extern state_t new_old_areas[16][8];
 
 /* Devices's semaphores. */
-semd_t *terminalRead, *terminalWrite, *psClock_timer;
+semd_t *terminalRead, *terminalWrite;
 
 /* Indirizzo base del device */
 HIDDEN memaddr device_baseaddr;
+
 /* Variabili per accedere ai campi status e command di device o terminali */
 HIDDEN int *read_s, *trans_s;
 HIDDEN int *read_cmd, *trans_cmd;
@@ -52,7 +53,12 @@ void intHandler() {
 	int int_cause;
 	int *bitMapDevice;
 	int devNumb;
-	int pseudo_tick;
+	/*puntatore al semaforo*/
+	semd_t s = getSemd(MAXPROC);
+	/*Cronometro per riconoscere il tick (ogni 100 millisecondi)*/
+	int pseudo_tick = 0;
+	int start_pseudo_tick = 0;
+
 	int cpu = getPRID(),cause = getCAUSE();
 	pcb_t* current = getRunningProcess(cpu);
 	if (cpu > 0)
@@ -68,19 +74,25 @@ void intHandler() {
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
 	if (CAUSE_IP_GET(int_cause, INT_TIMER)) {
 
-		unsigned int start_pseudo_tick;
-
 		/* Aggiornamento pseudo clock */
-		//SCHED_PSEUDO_CLOCK
 		pseudo_tick = pseudo_tick + (GET_TODLOW - start_pseudo_tick);
-		unsigned int start_pseudo_tick;
 		start_pseudo_tick = GET_TODLOW;
+		if(pseudo_tick >= SCHED_PSEUDO_CLOCK)
+			/*sblocco tutti i processi*/
 
-		int readyQ;
-		assignProcess(&readyQ, current);
-		getRunningProcess(cpu);
-	}
-	else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
+			p = removeBlocked(MAXPROC);
+
+		/*se ho sbloccato dei processi*/
+
+		if(p!=NULL){
+			if (cpu > 0)
+				copyState((&new_old_areas[cpu][1]),(&p->p_s));
+			else
+				copyState(((state_t*)INT_OLDAREA),(&p->p_s));
+			enqueueProcess(p,cpu);/*metto in coda i processi*/
+		}
+
+	}else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
 
 		/* Cerco la bitmap della linea attuale */
 		bitMapDevice =(int *) (PENDING_BITMAP_START + (WORD_SIZE * (INT_TERMINAL - INT_LOWEST)));
@@ -118,18 +130,6 @@ void intHandler() {
 			/* ACK per il riconoscimento dell'interrupt pendente */
 			//	(*trans:cmd) = DEV_C_ACK;
 		}
-	}
-	else {
-		unsigned int PSEUDO_CLOCK_INTERVAL;
-
-		SET_IT(PSEUDO_CLOCK_INTERVAL - pseudo_tick);
-		/*eseguo v su system call*/
-
-
-		/* if v non sblocca salvo stato dispositivo
-		 * &currentThread->t_state)
-
-		 * else chiamo la sys8*/
 	}
 
 	restartScheduler();
