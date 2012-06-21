@@ -8,7 +8,8 @@
 #ifndef TRAPS_H_
 #define TRAPS_H_
 
-void trapsHandler();
+void trapHandler();
 void progTrapHandler();
+void tlbHandler();
 
 #endif /* TRAPS_H_ */

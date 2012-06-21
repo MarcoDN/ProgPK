@@ -13,12 +13,6 @@ pcb_t pcbFree_table[MAXPROC];
 /* Definizione elemento sentinella della PcbFree */
 struct list_head pcbFree_h;
 
-
-/* variabile di controllo per non aggiungere più di 20 pcb_t in esecuzione nel sistema,
-come da specifica*/
-HIDDEN unsigned int available;
-
-
 /* 1. void initPcbs(); */
 /* Estrae tutti i pcb_t dall'array dei processi massimi consentiti e li inserisce nalla coda di quelli liberi, non ancora utilizzati. */
 void initPcbs() {
@@ -26,7 +20,6 @@ void initPcbs() {
 	int j;
 
 	INIT_LIST_HEAD(&pcbFree_h); /* inizializzo la testa della pcbFree */
-	available = MAXPROC;
 
 	/* uno alla volta estraggo i pcbFree dall'array e ne inizializzo i list_head p_child, per uso futuro negli alberi di pcb */
 	for(j=0;j<MAXPROC;j++) {
@@ -39,36 +32,20 @@ void initPcbs() {
 
 }
 
-
-
-
 /* 2. void freePcb(pcb_t * p) */
 /* Inserisce il pcb puntato da p nella coda di quelli liberi, la pcbFree */
 
 void freePcb(pcb_t *p) {
 
-	if (available < MAXPROC) {
+	list_add_tail(&p->p_next, &pcbFree_h);
 
-		list_add_tail(&p->p_next, &pcbFree_h);
-
-		available++; /* mi ricordo che ora ho un processo in più tra quelli liberi 
-									e quindi incremento available */
-
-	}
 }
-
-
-
-
-
-
-
 
 /* 3. pcb_t* allocPcb() */
 /* Estrae il pcb in testa alla coda della pcbFree, inizializzandone i campi. Se tale coda è vuota, viene restituito NULL*/
 pcb_t* allocPcb() {
 
-	int i;
+	int i,j;
 	struct pcb_t * elem;
 
 	if (list_empty(&pcbFree_h))
@@ -87,19 +64,21 @@ pcb_t* allocPcb() {
 		/* Inizializzo i campi interi del pcb. Tutti i list head escluso il puntatore a list_head p_parent sono
 		stati inizializzati dalla funzione prcedente quindi non devo occuparmene */
 		elem -> p_parent = NULL;
-		elem -> p_s.entry_hi = 0;
-		elem -> p_s.cause = 0;
-		elem -> p_s.status = 0;
-		elem -> p_s.pc_epc = 0;
+		elem -> p_s.entry_hi =
+				elem -> p_s.cause =
+						elem -> p_s.status =
+								elem -> p_s.pc_epc  =
+										elem -> p_s.hi =
+												elem -> p_s.lo =
+														elem -> priority =
+																elem -> cpu_time =
+																		elem -> killed = 0;
 		for (i = 0; i < 29; i++)
 			elem -> p_s.gpr[i] = 0;
-		elem -> p_s.hi = 0;
-		elem -> p_s.lo = 0;
-		elem -> priority = 0;
 		elem -> p_semkey = -1;
+		for (i = 0; i < 6; i++)
+			elem -> def_areas[i] = NULL;
 
-		available--; /* Avendo estratto l'elemento in testa alla coda pcbFree, 
-										ora ne ho disponibiile uno in meno */
 		return elem;
 
 	}
@@ -239,8 +218,6 @@ int emptyChild(pcb_t *p) {
 }
 
 
-
-
 /* 11. void insertChild(pcb_t *prnt, pcb_t *p) */
 /* Aggiunge il pcb puntato da p come figlio del pc puntato da prnt. 
 Questo significa due cose: se il pcb puntato da prnt non ha ancora figli, il pcb puntato da p è inserito
@@ -253,10 +230,6 @@ void insertChild(pcb_t *prnt, pcb_t *p) {
 
 	return;
 }
-
-
-
-
 
 /* 12. pcb_t* removeChild(pcb_t *p) */
 /* Rimuove il PRIMO figlio dei figli del pcb puntato da p. 
@@ -286,12 +259,6 @@ pcb_t* removeChild(pcb_t* p) {
 	return NULL;
 
 }
-
-
-
-
-
-
 
 /* 13. pcb_t * outChild(pcb_t * p) */
 /* Rimuove il pcb puntato da p dalla lista dei figli di suo padre.

@@ -12,26 +12,34 @@
  */
 
 #include "types11.h"
+#include "pcb.e"
 
-HIDDEN semd_t semd_table[MAXPROC]; /* Array contenente tutti i semd. */
+#include "sysvars.h"
+
+HIDDEN semd_t semd_table[NUMSEM]; /* Array contenente tutti i semd. */
 
 /* Sentinelle che definiscono rispettivamente le liste semdFree e ASL. */
 HIDDEN struct list_head semdFree_h , semd_h;
 
+/* Ritorna il puntatore ad un elemento della semd_table, il cui indice è specificato dal parametro. */
+semd_t* getSemd(int key) {
+
+	if (key >= 0 && key < NUMSEM)
+		return &semd_table[key];
+	else
+		return NULL;
+
+}
+
 /* 14:  Estraggo il puntatore ad un semd con determinata key, dalla ASL. */
+semd_t* getASLSemd(int	key) {
 
-semd_t* getSemd(int	key) {
-
-	if (key>=0 && key<MAXPROC) {  /* Controlla che la key sia nel range compreso tra 0 e MAXPROC. */
-
-		semd_t *semd = &semd_table[key];
-
-		if (!list_empty(&semd->s_procQ)) /* Se la coda di processi bloccati su questo semd non è vuota, si trova nella ASL e viene restituito. */
-			return semd;
-
-	}
-
-	return NULL; /* semd non trovato o valore di key invalido, restituisco NULL. */
+	if (key >= 0 && key < NUMSEM &&
+			!list_empty(&(semd_table[key].s_procQ)))   /* Controlla che la key sia nel range compreso tra 0 e NUMSEM e
+			che la coda di processi bloccati su questo semd non sia vuota (indicandone la presenza nella ASL). */
+		return &semd_table[key];
+	else
+		return NULL; /* semd non trovato o valore di key invalido, restituisco NULL. */
 
 }
 
@@ -41,9 +49,9 @@ int	insertBlocked(int key,pcb_t	*p) {
 
 	semd_t* current;  /* Puntatore per il semd da modificare. */
 
-	if (key>=0 && key<MAXPROC) { /* Controlla che la key sia nel range compreso tra 0 e MAXPROC. */
+	if (key >= 0 && key < NUMSEM) { /* Controlla che la key sia nel range compreso tra 0 e NUMSEM. */
 
-		if ((current = getSemd(key))==NULL) { /* Se non è in già in uso il semd con la key fornita, nella ASL: */
+		if ((current = getASLSemd(key))==NULL) { /* Se non è in già in uso il semd con la key fornita, nella ASL: */
 
 			current = &semd_table[key];
 
@@ -74,7 +82,7 @@ pcb_t*	removeBlocked(int key)	{
 	struct list_head* entry; /* Puntatore per trasferimento elementi tra liste. */
 
 	/* Controllo che un semd con la key fornita sia nella ASL */
-	if ((current = getSemd(key))!=NULL) {
+	if ((current = getASLSemd(key))!=NULL) {
 
 		entry = list_next(&current->s_procQ); /* Prendo il primo list_head dalla coda dei processi del semd. */
 
@@ -105,7 +113,7 @@ pcb_t* outBlocked(pcb_t	*p) {
 	semd_t* current;
 
 	/* Cerca il semd con la key del pcb dato, nella ASL. */
-	if ((current = getSemd(p->p_semkey))!=NULL && !list_empty(&p->p_next)) {   /* Se il semd relativo a questo pcb è presente nella ASL */
+	if ((current = getASLSemd(p->p_semkey))!=NULL && !list_empty(&p->p_next)) {   /* Se il semd relativo a questo pcb è presente nella ASL */
 
 		list_del(&p->p_next);  /* Lo rimuove dalla coda. */
 
@@ -127,7 +135,7 @@ pcb_t* headBlocked(int key) {
 
 	semd_t* current;  /* Puntatore per il semd scelto. */
 
-	if ((current = getSemd(key))!=NULL && !list_empty(&current->s_procQ))  /* Se è in uso un semd con la key fornita nella ASL e
+	if ((current = getASLSemd(key))!=NULL && !list_empty(&current->s_procQ))  /* Se è in uso un semd con la key fornita nella ASL e
 																				la coda dei pcb di questo semd non è vuota: */
 		return container_of(list_next(&current->s_procQ),pcb_t,p_next); /* Restituisco il primo pcb bloccato su essa. */
 
@@ -135,18 +143,27 @@ pcb_t* headBlocked(int key) {
 
 }
 
-/* 19: Elimina ricorsivamente tutti i pcb discendenti di quello dato,dalle code dei loro semd. */
+/* 19: Elimina ricorsivamente tutti i pcb discendenti di quello dato,dalle code dei loro semd.
+ * Restituisce un intero indicante il numero di pcb rimossi.
+ * */
 
-void  outChildBlocked(pcb_t	*p) {
+int outChildBlocked(pcb_t *p) {
 
+	int tot = 0;
 	pcb_t* child;
 
-	outBlocked(p);  /* Elimino il pcb dato dalla coda del suo semd,se presente. */
+	if (outBlocked(p)) { /* Elimino il pcb dato dalla coda del suo semd,se presente, e in tal caso incremento il contatore. */
+		tot++;
+		freePcb(p);
+	}
+	else
+		p->killed = TRUE;
 
 	/* Itero sulla lista dei figli, definita da p_child, e applico ricorsivamente la funzione outChildBlocked su ognuno di essi. */
 	list_for_each_entry(child,&p->p_child,p_sib)
-	outChildBlocked(child);
+	tot += outChildBlocked(child);
 
+	return tot;
 }
 
 /* 20:  Inizializzo la semdFree in modo da contenere tutti i semd disponibili. */
@@ -159,10 +176,13 @@ void initASL() {
 
 	INIT_LIST_HEAD(&semd_h);  /* Inizializzo l'elemento sentinella della ASL. */
 
-	for (i=0;i<MAXPROC;i++) { /* Ciclo sull'array di semd allocati, concatenandone i puntatori nella ASL. */
+	for (i = 0; i < NUMSEM; i++) { /* Ciclo sull'array di semd allocati, concatenandone i puntatori nella ASL. */
+
 		list_add(&semd_table[i].s_next,&semdFree_h);
-		/* Ne inizializzo le key e le code di processi bloccati. */
+
+		/* Ne inizializzo le key,i valori e le code di processi bloccati. */
 		semd_table[i].s_key = i;
+		semd_table[i].s_value = 0;
 		INIT_LIST_HEAD(&semd_table[i].s_procQ);
 	}
 
