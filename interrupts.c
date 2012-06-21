@@ -28,14 +28,14 @@ extern state_t new_old_areas[16][8];
 semd_t *terminalRead, *terminalWrite;
 
 /* Indirizzo base del device */
-HIDDEN memaddr device_baseaddr;
+//HIDDEN memaddr device_baseaddr;
 
 /* Variabili per accedere ai campi status e command di device o terminali */
-HIDDEN int *read_s, *trans_s;
+/*HIDDEN int *read_s, *trans_s;
 HIDDEN int *read_cmd, *trans_cmd;
-HIDDEN int recvStatByte, transmStatByte;
+HIDDEN int recvStatByte, transmStatByte;*/
 
-HIDDEN int recognizeDev(int bitMapDevice)
+/*HIDDEN int recognizeDev(int bitMapDevice)
 {
 	if (bitMapDevice == (bitMapDevice | 0x1)) return 0;
 	if (bitMapDevice == (bitMapDevice | 0x2)) return 1;
@@ -45,7 +45,7 @@ HIDDEN int recognizeDev(int bitMapDevice)
 	if (bitMapDevice == (bitMapDevice | 0x20)) return 5;
 	if (bitMapDevice == (bitMapDevice | 0x40)) return 6;
 	return 7;
-}
+}*/
 
 //extern pcb_t *locksemaphore;
 void intHandler() {
@@ -53,11 +53,6 @@ void intHandler() {
 	int int_cause;
 	int *bitMapDevice;
 	int devNumb;
-	/*puntatore al semaforo*/
-	semd_t s = getSemd(MAXPROC);
-	/*Cronometro per riconoscere il tick (ogni 100 millisecondi)*/
-	int pseudo_tick = 0;
-	int start_pseudo_tick = 0;
 
 	int cpu = getPRID(),cause = getCAUSE();
 	pcb_t* current = getRunningProcess(cpu);
@@ -74,69 +69,67 @@ void intHandler() {
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
 	if (CAUSE_IP_GET(int_cause, INT_TIMER)) {
 
-		/* Aggiornamento pseudo clock */
-		pseudo_tick = pseudo_tick + (GET_TODLOW - start_pseudo_tick);
-		start_pseudo_tick = GET_TODLOW;
-		if(pseudo_tick >= SCHED_PSEUDO_CLOCK)
-			/*sblocco tutti i processi*/
-
-			p = removeBlocked(MAXPROC);
-
-		/*se ho sbloccato dei processi*/
-
-		if(p!=NULL){
-			if (cpu > 0)
-				copyState((&new_old_areas[cpu][1]),(&p->p_s));
-			else
-				copyState(((state_t*)INT_OLDAREA),(&p->p_s));
-			enqueueProcess(p,cpu);/*metto in coda i processi*/
+		/*puntatore al semaforo*/
+		semd_t pseudoClockSem = getSemd(MAXPROC);
+		while(!CAS(&sem_esclusion[MAXPROC],FREE,BUSY)) ;/*appena trova free lo metto a busy*/
+		/*se la coda non è vuota li risvegliamo*/
+		while(!(emptyProcQ(pseudoClockSem->s_procQ))) {
+			pcb_t* pWake = removeBlocked(MAXPROC);
+			enqueueProcess(pWake,cpu);/*metto in readyq il processo*/
+			pseudoClockSem->s_value = pseudoClockSem->s_value + 1;/*incremento il valore del semaforo*/
 		}
+		pseudoClockSem->s_value = pseudoClockSem->s_value + 1;/*incremento il valore del semaforo*/
+		CAS(&sem_esclusion[MAXPROC],BUSY,FREE);/*setto a free*/
 
-	}else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
+
+
+
+	}/*else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
 
 		/* Cerco la bitmap della linea attuale */
-		bitMapDevice =(int *) (PENDING_BITMAP_START + (WORD_SIZE * (INT_TERMINAL - INT_LOWEST)));
+		//bitMapDevice =(int *) (PENDING_BITMAP_START + (WORD_SIZE * (INT_TERMINAL - INT_LOWEST)));
 		/*device number select on bitmap*/
-		devNumb = recognizeDev(*bitMapDevice);
+		//devNumb = recognizeDev(*bitMapDevice);
 		/* Salvo indirizzo del Device Register */
-		device_baseaddr = (memaddr)(DEV_REGS_START + ((INT_TERMINAL - INT_LOWEST) * 0x80) + (devNumb * 0x10));
+		//device_baseaddr = (memaddr)(DEV_REGS_START + ((INT_TERMINAL - INT_LOWEST) * 0x80) + (devNumb * 0x10));
 
 		/* Recupera il campo status del device (ricezione) */
-		read_s    = (int *) (device_baseaddr + 0x0);
+//		read_s    = (int *) (device_baseaddr + 0x0);
 		/* Recupera il campo status del device (trasmissione) */
-		trans_s   = (int *) (device_baseaddr + 0x8);
+	//	trans_s   = (int *) (device_baseaddr + 0x8);
 		/* Recupera il campo command del device (ricezione) */
-		read_cmd    = (int *) (device_baseaddr + 0x4);
+		//read_cmd    = (int *) (device_baseaddr + 0x4);
 		/* Recupera il campo command del device (trasmissione) */
-		trans_cmd  = (int *) (device_baseaddr + 0xC);
+		//trans_cmd  = (int *) (device_baseaddr + 0xC);
 		/* Estrae il byte dello status per capire cosa è avvenuto */
-		recvStatByte   = (*read_s) & 0xFF;
-		transmStatByte = (*trans_s) & 0xFF;
+		//recvStatByte   = (*read_s) & 0xFF;
+		//transmStatByte = (*trans_s) & 0xFF;
 		/* Se è un carattere trasmesso */
-		if(transmStatByte == DEV_TTRS_S_CHARTRSM)
-		{
+		//if(transmStatByte == DEV_TTRS_S_CHARTRSM)
+	//	{
 			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
 			//v = V(terminalWrite , 1 ,current)
 
 			/* ACK per il riconoscimento dell'interrupt pendente */
 			//(*tCommand) = DEV_C_ACK;
-		}
+		//}
 		/* Se è un carattere ricevuto */
-		else if(recvStatByte == DEV_TRCV_S_CHARRECV)
-		{
+	//	else if(recvStatByte == DEV_TRCV_S_CHARRECV)
+	//	{
 			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
 			//v = V(terminalWrite , 2 ,current);
 
 			/* ACK per il riconoscimento dell'interrupt pendente */
 			//	(*trans:cmd) = DEV_C_ACK;
-		}
+		//}
+	//}*/
+	else{
+		/*incrementiamo il tempo della cpu*/
+		current->cpu_time = current->cpu_time + SCHED_TIME_SLICE;
+		/*rimettiamo in coda ready*/
+		enqueueProcess(current,cpu);/*metto in readyq il processo*/
 	}
 
 	restartScheduler();
-
-	/* if v non sblocca salvo stato dispositivo
-	 * else chiamo la sys8*/
-
-
 
 }
