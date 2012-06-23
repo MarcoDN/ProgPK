@@ -21,33 +21,19 @@
 
 #include "utilTest.h"
 #include "copy.h"
-
+/*macro use on terminal interrupt*/
+#define IntlineNo 7
+#define devAddrBase(i) 0x10000050 + ((IntlineNo -3 )* 0x80)+(i *0x10)
+#define statusReg_R(i) devAddrBase(i) + 0x0
+#define statusReg_T(i) devAddrBase(i) + 0x8
+#define commandReg_R(i) devAddrBase(i) + 0x4
+#define commandReg_T(i) devAddrBase(i) + 0xC
+#define lineTerminal PENDING_BITMAP_START + (WORD_SIZE * (IntlineNo - 3))
 extern state_t new_old_areas[16][8];
 
 /* Devices's semaphores. */
 semd_t *terminalRead, *terminalWrite;
 
-/* Indirizzo base del device */
-//HIDDEN memaddr device_baseaddr;
-
-/* Variabili per accedere ai campi status e command di device o terminali */
-/*HIDDEN int *read_s, *trans_s;
-HIDDEN int *read_cmd, *trans_cmd;
-HIDDEN int recvStatByte, transmStatByte;*/
-
-/*HIDDEN int recognizeDev(int bitMapDevice)
-{
-	if (bitMapDevice == (bitMapDevice | 0x1)) return 0;
-	if (bitMapDevice == (bitMapDevice | 0x2)) return 1;
-	if (bitMapDevice == (bitMapDevice | 0x4)) return 2;
-	if (bitMapDevice == (bitMapDevice | 0x8)) return 3;
-	if (bitMapDevice == (bitMapDevice | 0x10)) return 4;
-	if (bitMapDevice == (bitMapDevice | 0x20)) return 5;
-	if (bitMapDevice == (bitMapDevice | 0x40)) return 6;
-	return 7;
-}*/
-
-//extern pcb_t *locksemaphore;
 void intHandler() {
 
 	int int_cause;
@@ -84,45 +70,62 @@ void intHandler() {
 
 
 
-	}/*else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
+	}else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
+		/*accesso al bitmap degli interrupt dalla riga dei terminali*/
+		unsigned int * interruptingDevBitMapSet = lineTerminal;
+		/*maschera di controllo*/
+		unsigned int mask = 0x1;
+		/*flag di controllo se diventa false vuol dire che non sono presenti interrupt*/
+		unsigned char flag = TRUE;
+		int i = 0;
+		int * readCmd,transCmd;
+		readCmd    = (int *) commandReg_R(i);
+		transCmd    = (int *) commandReg_T(i);
 
-		/* Cerco la bitmap della linea attuale */
-		//bitMapDevice =(int *) (PENDING_BITMAP_START + (WORD_SIZE * (INT_TERMINAL - INT_LOWEST)));
-		/*device number select on bitmap*/
-		//devNumb = recognizeDev(*bitMapDevice);
-		/* Salvo indirizzo del Device Register */
-		//device_baseaddr = (memaddr)(DEV_REGS_START + ((INT_TERMINAL - INT_LOWEST) * 0x80) + (devNumb * 0x10));
 
-		/* Recupera il campo status del device (ricezione) */
-//		read_s    = (int *) (device_baseaddr + 0x0);
-		/* Recupera il campo status del device (trasmissione) */
-	//	trans_s   = (int *) (device_baseaddr + 0x8);
-		/* Recupera il campo command del device (ricezione) */
-		//read_cmd    = (int *) (device_baseaddr + 0x4);
-		/* Recupera il campo command del device (trasmissione) */
-		//trans_cmd  = (int *) (device_baseaddr + 0xC);
-		/* Estrae il byte dello status per capire cosa è avvenuto */
-		//recvStatByte   = (*read_s) & 0xFF;
-		//transmStatByte = (*trans_s) & 0xFF;
+
+		do{
+			if((*interruptingDevBitMapSet & mask) != 0 ){
+				/*ritorna il valore del contatore*/
+
+				/*setta flag a false*/
+				flag= FALSE;
+			}
+			else{
+				i++;
+			}
+
+
+		}while(flag);
+
+		/*lettura del carattere*/
+		if(statusReg_R(i) == DEV_TTRS_S_CHARTRSM ){
+			/*indice del semaforo*/
+			int term_r;
+			term_r = TERMINAL_SEM_R(i);
+			/*puntatore al semaforo*/
+			semd_t *s = getSemd(term_r);
+			V(s,term_r);
+			/*DEV_C_ACK*/
+			(*readCmd)= DEV_C_ACK;
+
+		}
+		/*trasmissione carattere*/
 		/* Se è un carattere trasmesso */
-		//if(transmStatByte == DEV_TTRS_S_CHARTRSM)
-	//	{
-			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
-			//v = V(terminalWrite , 1 ,current)
+		else if(statusReg_T(i) == DEV_TTRS_S_TRSMERR)
+		{
+			/*indice del semaforo*/
+			int term_t;
+			term_t = TERMINAL_SEM_W(i);
+			/*puntatore al semaforo*/
+			semd_t *s = getSemd(term_t);
+			V(s,term_t);
+			/*DEV_C_ACK*/
+			(*transCmd) = DEV_C_ACK ;
+		}
 
-			/* ACK per il riconoscimento dell'interrupt pendente */
-			//(*tCommand) = DEV_C_ACK;
-		//}
-		/* Se è un carattere ricevuto */
-	//	else if(recvStatByte == DEV_TRCV_S_CHARRECV)
-	//	{
-			/* Compie una V sul semaforo associato al device che ha causato l'interrupt */
-			//v = V(terminalWrite , 2 ,current);
 
-			/* ACK per il riconoscimento dell'interrupt pendente */
-			//	(*trans:cmd) = DEV_C_ACK;
-		//}
-	//}*/
+	}
 	else{
 		/*incrementiamo il tempo della cpu*/
 		current->cpu_time = current->cpu_time + SCHED_TIME_SLICE;

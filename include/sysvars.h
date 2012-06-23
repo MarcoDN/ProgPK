@@ -86,4 +86,11 @@ U32 TEST2;
 #define FREE 1
 #define BUSY 0
 
+/*macros definition for terminal device*/
+
+#define RECV_STATE 0x0
+#define RECV_CMD 0x4
+#define TRANSM_STATE 0x8
+#define TRANSM_CMD 0xC
+
 #endif /* SYSVARS_H_ */
