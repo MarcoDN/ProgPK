@@ -21,6 +21,8 @@
 
 #include "utilTest.h"
 #include "copy.h"
+
+#include "syscalls.c"
 /*macro use on terminal interrupt*/
 #define IntlineNo 7
 #define devAddrBase(i) 0x10000050 + ((IntlineNo -3 )* 0x80)+(i *0x10)
@@ -36,9 +38,6 @@ semd_t *terminalRead, *terminalWrite;
 
 void intHandler() {
 
-	int int_cause;
-	int *bitMapDevice;
-	int devNumb;
 
 	int cpu = getPRID(),cause = getCAUSE();
 	pcb_t* current = getRunningProcess(cpu);
@@ -53,13 +52,13 @@ void intHandler() {
 	if(current != NULL)
 		copyState(((state_t*)INT_OLDAREA),(&current->p_s));
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
-	if (CAUSE_IP_GET(int_cause, INT_TIMER)) {
+	if (CAUSE_IP_GET(cause, INT_TIMER)) {
 
 		/*puntatore al semaforo*/
-		semd_t pseudoClockSem = getSemd(MAXPROC);
+		semd_t *pseudoClockSem = getSemd(MAXPROC);
 		while(!CAS(&sem_esclusion[MAXPROC],FREE,BUSY)) ;/*appena trova free lo metto a busy*/
 		/*se la coda non è vuota li risvegliamo*/
-		while(!(emptyProcQ(pseudoClockSem->s_procQ))) {
+		while(!(emptyProcQ(&pseudoClockSem->s_procQ))) {
 			pcb_t* pWake = removeBlocked(MAXPROC);
 			enqueueProcess(pWake,cpu);/*metto in readyq il processo*/
 			pseudoClockSem->s_value = pseudoClockSem->s_value + 1;/*incremento il valore del semaforo*/
@@ -72,13 +71,14 @@ void intHandler() {
 
 	}else if (CAUSE_IP_GET(cause,INT_TERMINAL)) { /* terminal interrupt */
 		/*accesso al bitmap degli interrupt dalla riga dei terminali*/
-		unsigned int * interruptingDevBitMapSet = lineTerminal;
+		unsigned int  *interruptingDevBitMapSet = lineTerminal;
 		/*maschera di controllo*/
 		unsigned int mask = 0x1;
 		/*flag di controllo se diventa false vuol dire che non sono presenti interrupt*/
 		unsigned char flag = TRUE;
 		int i = 0;
-		int * readCmd,transCmd;
+		int * readCmd;
+		int *transCmd;
 		readCmd    = (int *) commandReg_R(i);
 		transCmd    = (int *) commandReg_T(i);
 
