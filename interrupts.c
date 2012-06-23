@@ -24,10 +24,10 @@
 /*macro use on terminal interrupt*/
 #define IntlineNo 7
 #define devAddrBase(i) 0x10000050 + ((IntlineNo -3 )* 0x80)+(i *0x10)
-#define statusReg_R(i) devAddrBase(i) + 0x0
-#define statusReg_T(i) devAddrBase(i) + 0x8
-#define commandReg_R(i) devAddrBase(i) + 0x4
-#define commandReg_T(i) devAddrBase(i) + 0xC
+#define statusReg_R(i) devAddrBase(i) + RECV_STATE
+#define statusReg_T(i) devAddrBase(i) + TRANSM_STATE
+#define commandReg_R(i) devAddrBase(i) + RECV_CMD
+#define commandReg_T(i) devAddrBase(i) + TRANSM_CMD
 #define lineTerminal PENDING_BITMAP_START + (WORD_SIZE * (IntlineNo - 3))
 extern state_t new_old_areas[16][8];
 
