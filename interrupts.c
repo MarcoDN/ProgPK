@@ -85,17 +85,21 @@ void intHandler() {
 
 
 		do{
-			if((*interruptingDevBitMapSet & mask) != 0 ){
-				/*ritorna il valore del contatore*/
+			/*controllo per fare in modo che se ha finito gli 8 terminali non esegua più*/
+			if(i < 8){
+				if((*interruptingDevBitMapSet & mask) != 0 ){
+					/*ritorna il valore del contatore*/
 
-				/*setta flag a false*/
-				flag= FALSE;
+					/*setta flag a false*/
+					flag= FALSE;
+				}
+				else{
+					i++;
+					mask = mask << 1; /* Oppure mask <<=1  bit shifting*/
+				}
+
+
 			}
-			else{
-				i++;
-			}
-
-
 		}while(flag);
 
 		/*lettura del carattere*/
