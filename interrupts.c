@@ -24,16 +24,16 @@
 
 /*macro use on terminal interrupt*/
 #define termIntLine 7
-//#define devAddrBase(i) 0x10000050 + ((IntlineNo -3 )* 0x80)+(i *0x10)
-//#define statusReg_R(i) devAddrBase(i) + RECV_STATE
-//#define statusReg_T(i) devAddrBase(i) + TRANSM_STATE
-//#define commandReg_R(i) devAddrBase(i) + RECV_CMD
-//#define commandReg_T(i) devAddrBase(i) + TRANSM_CMD
-#define lineTerminal 0x1000004C
+#define lineTerminal 0x1000003C
 
 //PENDING_BITMAP_START + (WORD_SIZE * (IntlineNo - 3))
 extern state_t new_old_areas[16][8];
 extern unsigned int sem_esclusion[NUMSEM];
+
+/*int devAdd(int i){
+	int a;
+	return 0x10000050 + ((IntlineNo -3 )* 0x80)+(i *0x10);
+}*/
 
 unsigned char *devAddrBase(unsigned int i)
 {
@@ -57,7 +57,7 @@ unsigned char *statusReg_R(unsigned int i)
 
 unsigned char *statusReg_T(unsigned int i)
 {
-	return (unsigned char *)  devAddrBase(i) + TRANSM_STATE;
+	return (unsigned char *) (((unsigned char *) devAddrBase(i)) + TRANSM_STATE);
 }
 
 void tester(void)
@@ -78,9 +78,9 @@ void tester3(void)
 void intHandler() {
 
 	int cpu = getPRID(),cause = getCAUSE();
-
+	
 	pcb_t* current = getRunningProcess(cpu);
-
+	
 	if (cpu > 0)
 		copyState((&new_old_areas[cpu][1]),(&current->p_s));
 	else
@@ -92,14 +92,14 @@ void intHandler() {
 	/* Se è presente un processo sulla CPU, salviamo il suo stato */
 	if(current != NULL)
 		copyState(((state_t*)INT_OLDAREA),(&current->p_s));
-
+	
 	//tester();
-
+	
 	/* Linea 2 Interval Timer Interrupt + Gestione PSEUDO CLOCK ****************************/
 	if (CAUSE_IP_GET(cause, INT_TIMER)) {
 
-		//	tester2();
-
+	//	tester2();
+		
 		/*puntatore al semaforo*/
 		semd_t *pseudoClockSem = getSemd(MAXPROC);
 		while(!CAS(&sem_esclusion[MAXPROC],FREE,BUSY)) ;/*appena trova free lo metto a busy*/
@@ -123,7 +123,7 @@ void intHandler() {
 		unsigned int mask = 0x1;
 		/*flag di controllo se diventa false vuol dire che non sono presenti interrupt*/
 		unsigned char flag = FALSE;
-
+		int recvStatByte, transmStatByte;
 		int i = 0;
 		unsigned int *readCmd  = (unsigned int *) commandReg_R(i);
 		unsigned int *transCmd = (unsigned int *) commandReg_T(i);
@@ -135,40 +135,43 @@ void intHandler() {
 		do{
 
 			/*controllo per fare in modo che se ha finito gli 8 terminali non esegua più*/
-			if(i < 8){
+		
 
 				if((*interruptingDevBitMapSet & mask) == 0 ){
 					/*setta flag a false*/
-					flag= TRUE;
-				}
-				else{
+				flag= FALSE;
+		
 
+		}
+		else{
+
+			//		addokbuf("stronzo\0");
 					i++;
-					mask = mask << 1; /* Oppure mask <<=1  bit shifting*/
+					//mask = mask << 1; /* Oppure mask <<=1  bit shifting*/
 					mask = mask << 1;
 
 
 				}
 
-			}
+			
 
 		}while(flag);
 
-
+		//addokbuf("fuck\0");
 
 		/*lettura del carattere*/
 		if((*(statusReg_R(i)) == DEV_TRCV_S_CHARRECV) || (*(statusReg_R(i)) == DEV_TRCV_BUSY)){
-
+			
 			//tester3();
 			/*indice del semaforo*///addokbuf("ciao");
 			int term_r;
 			term_r = TERMINAL_SEM_R(i);
-
+			
 			/*puntatore al semaforo*/
 			semd_t *s = getSemd(term_r);
-
+			
 			V(s,term_r);
-
+			
 			/*DEV_C_ACK*/
 			*readCmd= DEV_C_ACK;
 		}
@@ -179,19 +182,23 @@ void intHandler() {
 		{
 			/*indice del semaforo*/
 			//tester2();
-
+			
 			int term_t;
 			term_t = TERMINAL_SEM_W(i);
 			/*puntatore al semaforo*/
 			semd_t *s = getSemd(term_t);
-
-
+			
+		
 			V(s,term_t);
-
+		
 			/*DEV_C_ACK*/
 			*transCmd = DEV_C_ACK;
-
 		}
+		else{
+			addokbuf("else");
+		}
+
+
 	}
 
 	else{
