@@ -22,29 +22,24 @@ extern state_t new_old_areas[MAX_CPU][8];
 
 /*Gestore delle eccezione statenate da ProgramTrap*/
 void trapHandler(){
-	/*Variabili per l'utilizzo delle critical section*/
-	int p=0;
-  
+
 	/*Ottengo il numero del processo che ha generato la exception*/
 	int cpu = getPRID();
 	pcb_t *current = getRunningProcess(cpu);
 	
 	/*Salvo il vecchio stato del processo*/
-	copyState(progtrap_oldarea,(&current->p_s));
+	if (cpu== 0)
+		copyState(progtrap_oldarea,(&current->p_s));
+	else
+		copyState((&new_old_areas[cpu][PGMTRAP_OLDAREA_INDEX]),(&current->p_s));
+	
 	current->p_s.pc_epc += WORD_SIZE;;
 
 	/* Se non è definita la proTrapmanager il processo viene ucciso */
 	if(current->def_areas[3] == 0){
-	  
-		/*Inizio Critical section*/
-		while (!CAS(&p,0,1));
-	  
+	   
 		/*Killo il processo*/
 		terminateprocess(current, cpu);
-		
-		/*Termine della Critical Section*/
-		CAS(&p,1,0);
-		
 		current = NULL;
 	}
 	
@@ -52,7 +47,7 @@ void trapHandler(){
 	else{
 		copyState(progtrap_oldarea, current->def_areas[2]);
 		/*Carico lo stato personalizzato all'interno della new area*/
-		copyState(current->def_areas[3], (&current->p_s));
+		LDST (current->def_areas[3]);
 	}
 	
 
@@ -61,7 +56,7 @@ void trapHandler(){
 	restartScheduler();
 }
 
-/*Gestore delle eccezione statenate da ProgramTrap*/
+/*Gestore delle eccezione statenate da TBLexception*/
 void tlbHandler(){
 	/*Variabili per l'utilizzo delle critical section*/
 	int d=0;
@@ -71,21 +66,18 @@ void tlbHandler(){
 	pcb_t *current = getRunningProcess(cpu);
 
 	/*Salvo il vecchio stato del processo*/
-	copyState(tbltrap_oldarea, (&current->p_s));
+	if (cpu== 0)
+		copyState(tbltrap_oldarea,(&current->p_s));
+	else
+		copyState((&new_old_areas[cpu][TLB_OLDAREA_INDEX]),(&current->p_s));
+	
 	current->p_s.pc_epc += WORD_SIZE;
 
 	/* Se non è definita la proTrapmanager il processo viene ucciso */
 	if(current-> def_areas[1] == 0){
 	  
-		/*Inizio Critical section*/
-		while (!CAS(&d,0,1));
-	  
 		/*Killo il processo*/
 		terminateprocess(current, cpu);
-		
-		/*Termine della Critical Section*/
-		CAS(&d,1,0);
-		
 		current = NULL;
 	}
 	
@@ -93,7 +85,7 @@ void tlbHandler(){
 	else
 		copyState(tbltrap_oldarea, current->def_areas[0]);
 		/*Carico lo stato personalizzato all'interno della new area*/
-		copyState(current->def_areas[1], (&current->p_s));
+		LDST (current->def_areas[1]);
 	
 	/*Passo il controllo allo scheduler*/
 	restartScheduler();
@@ -114,15 +106,9 @@ void syscall_Handler(){
 
 	/* Se non è definita la proTrapmanager il processo viene ucciso 
 	if(current-> def_areas[5] == 0){
-	  
-		/*Inizio Critical section
-		while (!CAS(&s,0,1));
-	  
+		
 		/*Killo il processo
 		terminateprocess(current, cpu);
-		
-		/*Termine della Critical Section
-		CAS(&s,1,0);
 		current = NULL;
 	}
 	
@@ -130,7 +116,7 @@ void syscall_Handler(){
 	else
 		copyState(sysbp_oldarea, current->def_areas[4]);
 		/*Carico lo stato personalizzato all'interno della new area
-		copyState(current->def_areas[5], (&current->p_s));
+		LDST (current->def_areas[5]);
 	
 	/*Passo il controllo allo scheduler
 	restartScheduler();
