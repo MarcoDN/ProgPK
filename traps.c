@@ -58,8 +58,6 @@ void trapHandler(){
 
 /*Gestore delle eccezione statenate da TBLexception*/
 void tlbHandler(){
-	/*Variabili per l'utilizzo delle critical section*/
-	int d=0;
   
 	/*Ottengo il numero del processo che ha generato la exception*/
 	int cpu = getPRID();
@@ -93,15 +91,16 @@ void tlbHandler(){
 
 /*TODO: Pezzo di codice per la gestione delle syscalltrap, non so se Lory lo debba aggiungere nel suo gestore o se me ne devo occupare io
 void syscall_Handler(){
-	/*Variabile per la critical section
-	int s=0;
-
 	/*Ottengo il numero del processo che ha generato la exception
 	int cpu = getPRID();
 	pcb_t *current = getRunningProcess(cpu);
 
 	/*Salvo il vecchio stato del processo
-	copyState(sysbp_oldarea, (&current->p_s));
+	if (cpu == 0)
+		copyState(sysbp_oldarea,(&current->p_s));
+	else
+		copyState((&new_old_areas[cpu][SYSBP_OLDAREA_INDEX]),(&current->p_s));
+	
 	current->p_s.pc_epc += WORD_SIZE;
 
 	/* Se non è definita la proTrapmanager il processo viene ucciso 
